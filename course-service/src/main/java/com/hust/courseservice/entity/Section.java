@@ -2,6 +2,7 @@ package com.hust.courseservice.entity;
 
 import com.hust.commonlibrary.entity.BaseDocument;
 import lombok.*;
+import org.springframework.data.mongodb.core.index.TextIndexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 @Document(collection = "sections")
@@ -12,6 +13,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @AllArgsConstructor
 public class Section extends BaseDocument {
     private String courseId;
+
+    @TextIndexed
     private String name;
     private String description;
     private String access; 

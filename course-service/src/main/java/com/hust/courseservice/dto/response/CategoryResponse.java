@@ -14,6 +14,13 @@ public class CategoryResponse extends TimeResponse {
     private String id;
     private String name;
     private String description;
+    
+    // Monolith compatibility
+    private String cateSlug;
+    private String cateImage;
+    private String cateParent;
+    
+    // Original fields (optional to keep)
     private String slug;
     private String icon;
 }

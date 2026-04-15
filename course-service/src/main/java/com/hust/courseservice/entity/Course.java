@@ -1,6 +1,9 @@
 package com.hust.courseservice.entity;
 
 import com.hust.commonlibrary.entity.BaseDocument;
+import com.hust.courseservice.entity.enums.CourseAccess;
+import com.hust.courseservice.entity.enums.CourseLevel;
+import com.hust.courseservice.entity.enums.CourseStatus;
 import lombok.*;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.index.TextIndexed;
@@ -27,7 +30,7 @@ public class Course extends BaseDocument {
 
     private String thumbnail;
 
-    private String access; 
+    private CourseAccess access; 
 
     private String coursePreview;
 
@@ -41,7 +44,10 @@ public class Course extends BaseDocument {
     @TextIndexed
     private String description;
 
-    private String level;
+    private CourseLevel level;
+
+    @Builder.Default
+    private CourseStatus status = CourseStatus.DRAFT;
 
     @Indexed(unique = true)
     private String courseSlug;

@@ -31,4 +31,8 @@ public class CourseResponse extends TimeResponse {
     private List<String> requirements;
     private List<String> willLearns;
     private List<String> tags;
+
+    // Monolith compatibility
+    private String userId; // same as instructorId
+    private String categoryId; // same as category.id
 }

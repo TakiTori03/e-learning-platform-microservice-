@@ -19,5 +19,7 @@ public interface CourseMapper extends BaseMapper<Course, CourseRequest, CourseRe
 
     @Override
     @Mapping(target = "categoryName", source = "category.name")
+    @Mapping(target = "userId", source = "instructorId")
+    @Mapping(target = "categoryId", source = "category.id")
     CourseResponse entityToResponse(Course entity);
 }

@@ -16,5 +16,7 @@ public interface CategoryMapper extends BaseMapper<Category, CategoryRequest, Ca
 
     @Override
     @Mapping(target = "slug", source = "categorySlug")
+    @Mapping(target = "cateSlug", source = "categorySlug")
+    @Mapping(target = "cateImage", source = "icon")
     CategoryResponse entityToResponse(Category entity);
 }
