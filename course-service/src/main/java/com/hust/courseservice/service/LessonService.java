@@ -15,6 +15,7 @@ public interface LessonService {
     ListResponse<LessonResponse> search(String text, Pageable pageable);
     
     List<LessonResponse> getBySectionId(String sectionId);
+    List<LessonResponse> getBySectionIdEnrolled(String sectionId, String userId);
     List<LessonResponse> getByCourseId(String courseId);
     List<LessonResponse> getFreeLessons(String courseId);
     void updateDone(String id, String userId); // updateLessonDoneByUser

@@ -83,7 +83,13 @@ public class LessonController {
 
     @GetMapping("/section/course-enrolled/{sectionId}")
     public ResponseEntity<ApiResponse<List<LessonResponse>>> getBySectionIdEnrolled(@PathVariable String sectionId) {
-        return getBySectionId(sectionId);
+        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(
+                ApiResponse.<List<LessonResponse>>builder()
+                        .success(true)
+                        .payload(lessonService.getBySectionIdEnrolled(sectionId, userId))
+                        .build()
+        );
     }
 
     @GetMapping("/course/{courseId}/all-lessons")

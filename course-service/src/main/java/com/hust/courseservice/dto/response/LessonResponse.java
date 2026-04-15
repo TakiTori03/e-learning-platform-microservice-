@@ -21,4 +21,5 @@ public class LessonResponse extends TimeResponse {
     private Integer position;
     private String sectionId;
     private String courseId;
+    private Boolean isDone;
 }
