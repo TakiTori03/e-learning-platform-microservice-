@@ -5,29 +5,15 @@ services:
   elearning-mongodb:
     image: mongo:latest
     container_name: elearning-mongodb
-    restart: always
     environment:
       MONGO_INITDB_DATABASE: course_db
     ports:
       - "27017:27017"
     volumes:
-      - mongo_data:/data/db
-
-  # UI for MongoDB to easily manage course data
-  elearning-mongo-express:
-    image: mongo-express
-    container_name: elearning-mongo-express
-    restart: always
-    ports:
-      - "8081:8081"
-    environment:
-      ME_CONFIG_MONGODB_SERVER: elearning-mongodb
-      ME_CONFIG_MONGODB_PORT: 27017
-    depends_on:
-      - elearning-mongodb
+      - course_mongo_data:/data/db
 
 volumes:
-  mongo_data:
+  course_mongo_data:
 
 networks:
   default:
