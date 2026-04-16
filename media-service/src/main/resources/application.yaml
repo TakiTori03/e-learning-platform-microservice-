@@ -1,0 +1,36 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: media-service
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/e_learning_media
+  
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+app:
+  storage:
+    provider: LOCAL # LOCAL, CLOUDINARY, S3
+    local:
+      path: ./uploads
+      base-url: http://localhost:8086/files/
+  
+  cloudinary:
+    cloud-name: ${CLOUDINARY_CLOUD_NAME:}
+    api-key: ${CLOUDINARY_API_KEY:}
+    api-secret: ${CLOUDINARY_API_SECRET:}
+
+logging:
+  level:
+    root: INFO
+    com.hust.mediaservice: DEBUG
