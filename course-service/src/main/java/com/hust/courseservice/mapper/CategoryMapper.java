@@ -6,8 +6,9 @@ import com.hust.courseservice.dto.response.CategoryResponse;
 import com.hust.courseservice.entity.Category;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import com.hust.commonlibrary.mapper.GlobalMapperConfiguration;
 
-@Mapper(componentModel = "spring")
+@Mapper(config = GlobalMapperConfiguration.class)
 public interface CategoryMapper extends BaseMapper<Category, CategoryRequest, CategoryResponse> {
 
     @Override
