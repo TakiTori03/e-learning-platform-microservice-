@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  # Database riêng cho Interaction Service
+  interaction-mongodb:
+    image: mongo:latest
+    container_name: interaction-mongodb
+    environment:
+      MONGO_INITDB_DATABASE: e_learning_interaction
+    ports:
+      - "27018:27017"
+    volumes:
+      - interaction_mongo_data:/data/db
+    networks:
+      - elearning-network
+
+volumes:
+  interaction_mongo_data:
+
+networks:
+  elearning-network:
+    external: true

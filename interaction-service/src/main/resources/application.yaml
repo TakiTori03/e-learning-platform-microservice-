@@ -1,0 +1,26 @@
+server:
+  port: 8087
+
+spring:
+  application:
+    name: interaction-service
+
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27018/e_learning_interaction}
+
+eureka:
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER:http://localhost:8761/eureka/}
+    register-with-eureka: true
+    fetch-registry: true
+
+logging:
+  level:
+    root: INFO
+    com.hust.interactionservice: DEBUG
+    org.springframework.data.mongodb: DEBUG
