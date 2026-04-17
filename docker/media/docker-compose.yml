@@ -1,0 +1,24 @@
+
+services:
+  elearning-media-db:
+    image: mongo:latest
+    container_name: elearning-media-db
+    environment:
+      MONGO_INITDB_DATABASE: e_learning_media
+    ports:
+      - "27020:27017" # Sử dụng 27020 để không trùng với các service khác
+    volumes:
+      - media_mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  media_mongo_data:
+
+networks:
+  default:
+    name: elearning-network
+    external: true

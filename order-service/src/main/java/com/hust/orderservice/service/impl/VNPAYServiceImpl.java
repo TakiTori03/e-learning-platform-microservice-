@@ -1,0 +1,71 @@
+package com.hust.orderservice.service.impl;
+
+import com.hust.orderservice.service.VNPAYService;
+import com.hust.orderservice.utils.VNPAYUtils;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import java.text.SimpleDateFormat;
+import java.util.*;
+
+@Service
+public class VNPAYServiceImpl implements VNPAYService {
+
+    @Value("${payment.vnpay.tmn-code}")
+    private String tmnCode;
+
+    @Value("${payment.vnpay.hash-secret}")
+    private String hashSecret;
+
+    @Value("${payment.vnpay.url}")
+    private String vnpPayUrl;
+
+    @Value("${payment.vnpay.return-url}")
+    private String returnUrl;
+
+    @Override
+    public String createPaymentUrl(String orderId, long amount, String orderInfo, String ipAddress) {
+        String vnp_Version = "2.1.0";
+        String vnp_Command = "pay";
+        String vnp_TxnRef = orderId + "_" + System.currentTimeMillis();
+
+        Map<String, String> vnp_Params = new HashMap<>();
+        vnp_Params.put("vnp_Version", vnp_Version);
+        vnp_Params.put("vnp_Command", vnp_Command);
+        vnp_Params.put("vnp_TmnCode", tmnCode);
+        vnp_Params.put("vnp_Amount", String.valueOf(amount * 100));
+        vnp_Params.put("vnp_CurrCode", "VND");
+        vnp_Params.put("vnp_TxnRef", vnp_TxnRef);
+        vnp_Params.put("vnp_OrderInfo", orderInfo != null ? orderInfo : "Payment for order " + orderId);
+        vnp_Params.put("vnp_OrderType", "other");
+        vnp_Params.put("vnp_Locale", "vn");
+        vnp_Params.put("vnp_ReturnUrl", returnUrl);
+        vnp_Params.put("vnp_IpAddr", ipAddress);
+
+        Calendar cld = Calendar.getInstance(TimeZone.getTimeZone("Etc/GMT+7"));
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMddHHmmss");
+        String vnp_CreateDate = formatter.format(cld.getTime());
+        vnp_Params.put("vnp_CreateDate", vnp_CreateDate);
+
+        cld.add(Calendar.MINUTE, 15);
+        String vnp_ExpireDate = formatter.format(cld.getTime());
+        vnp_Params.put("vnp_ExpireDate", vnp_ExpireDate);
+
+        String queryUrl = VNPAYUtils.buildQueryUrl(vnp_Params);
+        String vnp_SecureHash = VNPAYUtils.hmacSHA512(hashSecret, queryUrl);
+        queryUrl += "&vnp_SecureHash=" + vnp_SecureHash;
+
+        return vnpPayUrl + "?" + queryUrl;
+    }
+
+    @Override
+    public boolean verifyCallback(Map<String, String> queryParams) {
+        String vnp_SecureHash = queryParams.get("vnp_SecureHash");
+        Map<String, String> fields = new HashMap<>(queryParams);
+        fields.remove("vnp_SecureHash");
+        fields.remove("vnp_SecureHashType");
+
+        String checkSum = VNPAYUtils.hashAllFields(hashSecret, fields);
+        return checkSum.equalsIgnoreCase(vnp_SecureHash);
+    }
+}

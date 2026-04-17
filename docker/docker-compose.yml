@@ -1,0 +1,14 @@
+# Master Docker Compose for E-learning Platform
+
+include:
+  - identity/docker-compose.yml
+  - course/docker-compose.yml
+  - order/docker-compose.yml
+  - learning/docker-compose.yml
+  - interaction/docker-compose.yml
+  - media/docker-compose.yml
+
+networks:
+  default:
+    name: elearning-network
+    external: true

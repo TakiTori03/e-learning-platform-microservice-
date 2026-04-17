@@ -1,0 +1,35 @@
+server:
+  port: 9005
+
+spring:
+  application:
+    name: learning-service
+  
+  # Database (MongoDB)
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27018/e_learning_learning}
+
+  # Security (OAuth2 Keycloak)
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8443/realms/elearning-realm}
+          jwk-set-uri: ${KEYCLOAK_JWKS_URI:http://localhost:8443/realms/elearning-realm/protocol/openid-connect/certs}
+
+eureka:
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER:http://localhost:8761/eureka/}
+    register-with-eureka: true
+    fetch-registry: true
+
+logging:
+  level:
+    root: INFO
+    com.hust.learningservice: DEBUG
+    org.springframework.data.mongodb.core.MongoTemplate: DEBUG
