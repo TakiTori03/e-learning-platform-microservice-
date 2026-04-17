@@ -38,6 +38,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                     .orElseThrow(() -> new RuntimeException("Parent not found"));
             discussion.setRootId(parent.getRootId() != null ? parent.getRootId() : parent.getId());
             discussion.setCourseId(parent.getCourseId());
+            discussion.setSectionId(parent.getSectionId());
             discussion.setLessonId(parent.getLessonId());
         }
 
@@ -75,7 +76,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     private ListResponse<DiscussionResponse> buildPagedTree(Page<Discussion> rootPage) {
         List<String> rootIds = rootPage.getContent().stream()
                 .map(Discussion::getId)
-                .collect(Collectors.toList());
+                .toList();
 
         List<Discussion> allRelated = discussionRepository.findByRootIdIn(rootIds);
         
@@ -84,7 +85,7 @@ public class DiscussionServiceImpl implements DiscussionService {
 
         List<DiscussionResponse> allResponses = combined.stream()
                 .map(discussionMapper::entityToResponse)
-                .collect(Collectors.toList());
+                .toList();
 
         Map<String, List<DiscussionResponse>> groupedByParent = allResponses.stream()
                 .filter(res -> res.getParentId() != null)
@@ -92,7 +93,7 @@ public class DiscussionServiceImpl implements DiscussionService {
 
         List<DiscussionResponse> rootResponses = allResponses.stream()
                 .filter(res -> rootIds.contains(res.getId()))
-                .collect(Collectors.toList());
+                .toList();
 
         allResponses.forEach(res -> res.setReplies(groupedByParent.get(res.getId())));
 

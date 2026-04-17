@@ -285,4 +285,29 @@ public class UserServiceImpl implements UserService {
         userRepository.save(user);
         log.info("Admin updated user status: {} -> {}", userId, newStatus);
     }
+
+    @Override
+    public UserResponse getUserById(String id) {
+        User user = userRepository.findById(UUID.fromString(id))
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        Set<String> roles = authRepository.getRolesForUser(id);
+        UserResponse response = userMapper.toUserResponse(user);
+        response.setRoles(roles);
+
+        return response;
+    }
+
+    @Override
+    public List<UserResponse> getUsersByIds(List<String> ids) {
+        List<UUID> uuids = ids.stream()
+                .map(UUID::fromString)
+                .toList();
+        
+        List<User> users = userRepository.findAllById(uuids);
+        
+        return users.stream()
+                .map(userMapper::toUserResponse)
+                .toList();
+    }
 }

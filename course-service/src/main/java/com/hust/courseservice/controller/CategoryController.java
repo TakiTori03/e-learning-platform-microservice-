@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/categories")
+@RequestMapping("/categories")
 @RequiredArgsConstructor
 public class CategoryController {
 
@@ -63,6 +63,16 @@ public class CategoryController {
         );
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<CategoryResponse>> detail(@PathVariable String id) {
+        return ResponseEntity.ok(
+                ApiResponse.<CategoryResponse>builder()
+                        .success(true)
+                        .payload(categoryService.detail(id))
+                        .build()
+        );
+    }
+
     @GetMapping("/select")
     public ResponseEntity<ApiResponse<List<CategoryResponse>>> getSelect() {
         return ResponseEntity.ok(
@@ -73,15 +83,7 @@ public class CategoryController {
         );
     }
 
-    @GetMapping("/category/{id}")
-    public ResponseEntity<ApiResponse<CategoryResponse>> detail(@PathVariable String id) {
-        return ResponseEntity.ok(
-                ApiResponse.<CategoryResponse>builder()
-                        .success(true)
-                        .payload(categoryService.detail(id))
-                        .build()
-        );
-    }
+
 
     @PatchMapping("/category/update-active-status/{id}")
     public ResponseEntity<ApiResponse<Void>> updateStatus(@PathVariable String id) {

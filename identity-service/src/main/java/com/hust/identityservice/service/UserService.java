@@ -20,6 +20,6 @@ public interface UserService {
     List<String> getAvailableRoles();
     List<UserResponse> getUsersByStatus(String status);
     void updateUserStatus(String userId, String status);
-
-
+    UserResponse getUserById(String id);
+    List<UserResponse> getUsersByIds(List<String> ids);
 }

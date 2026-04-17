@@ -1,22 +1,24 @@
-version: "3.8"
 
 services:
-  # Database riêng cho Interaction Service
-  interaction-mongodb:
+  elearning-interaction-db:
     image: mongo:latest
-    container_name: interaction-mongodb
+    container_name: elearning-interaction-db
     environment:
       MONGO_INITDB_DATABASE: e_learning_interaction
     ports:
-      - "27018:27017"
+      - "27019:27017" # Sử dụng 27019 để không trùng với Course (27017) và Learning (27018)
     volumes:
       - interaction_mongo_data:/data/db
-    networks:
-      - elearning-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   interaction_mongo_data:
 
 networks:
-  elearning-network:
+  default:
+    name: elearning-network
     external: true

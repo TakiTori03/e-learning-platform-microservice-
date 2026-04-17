@@ -11,10 +11,10 @@ import lombok.experimental.SuperBuilder;
 @EqualsAndHashCode(callSuper = true)
 public class InstructorRegistrationRequest extends UserRegistrationRequest {
     
-    @NotBlank(message = "FIELD_REQUIRED")
+    @NotBlank()
     private String headline;
     
-    @NotBlank(message = "FIELD_REQUIRED")
+    @NotBlank()
     private String biography;
     
     private String experience; // Optional field for review

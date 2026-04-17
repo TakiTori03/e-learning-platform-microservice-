@@ -12,6 +12,7 @@ public interface ReviewService {
     ReviewResponse createReview(ReviewRequest request);
     ListResponse<ReviewResponse> getReviewsByCourse(String courseId, String query, Integer rating, Pageable pageable);
     RatingResult getCourseRatingSummary(String courseId);
+    List<com.hust.interactionservice.dto.response.InternalCourseRatingResponse> getCourseRatingsBulk(List<String> courseIds);
 
     // Review Reply
     ReviewResponse createReply(String reviewId, String content);

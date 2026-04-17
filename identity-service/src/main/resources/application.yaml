@@ -7,59 +7,62 @@ spring:
     name: identity-service
 
   datasource:
-    # Kết nối tới DB identity_db trong Postgres
-    url: jdbc:postgresql://localhost:5432/identity_db
-    username: admin
-    password: password
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:identity_db}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:} # Để trống vì Postgres dùng chế độ trust
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
-      ddl-auto: update # Tự động tạo bảng từ Entity Java
+      ddl-auto: update
     show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
 
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
   security:
     oauth2:
       client:
         registration:
           keycloak:
-            client-id: elearning-client
-            client-secret: rJCLZinRhL3Fjsls30jOq6LyX1dvQVUf
+            client-id: ${KEYCLOAK_CLIENT_ID:elearning-client}
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:4ly5H8pOm0T3qWJDgVv0GXB1ZHfbQ5xN}
             scope: openid, profile, email
             authorization-grant-type: authorization_code
             redirect-uri: "{baseUrl}/login/oauth2/code/keycloak"
         provider:
           keycloak:
-            issuer-uri: http://localhost:8443/realms/elearning-realm
+            issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8443/realms/elearning-realm}
             user-name-attribute: preferred_username
       resourceserver:
         jwt:
-          # URL để Spring tự động tải Public Key về verify chữ ký Token
-          issuer-uri: http://localhost:8443/realms/elearning-realm
-          jwk-set-uri: http://localhost:8443/realms/elearning-realm/protocol/openid-connect/certs
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8443/realms/elearning-realm}
+          jwk-set-uri: ${KEYCLOAK_JWKS_URI:http://localhost:8443/realms/elearning-realm/protocol/openid-connect/certs}
 
   keycloak:
-    auth-server-url: http://localhost:8443
-    realm: elearning-realm
-    client-id: elearning-client
-    client-secret: rJCLZinRhL3Fjsls30jOq6LyX1dvQVUf
+    auth-server-url: ${KEYCLOAK_AUTH_URL:http://localhost:8443}
+    realm: ${KEYCLOAK_REALM:elearning-realm}
+    client-id: ${KEYCLOAK_CLIENT_ID:elearning-client}
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:4ly5H8pOm0T3qWJDgVv0GXB1ZHfbQ5xN}
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_SERVER:http://localhost:8761/eureka/}
   instance:
     prefer-ip-address: true
-
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
 
 logging:
   level:
-    org.springframework.security: DEBUG
-    org.springframework.security.oauth2: DEBUG
-    org.springframework.web.client: DEBUG
+    root: INFO
+    org.springframework.security: INFO
+    org.springframework.security.oauth2: INFO
     org.hibernate.SQL: DEBUG
+    com.hust.identityservice: DEBUG

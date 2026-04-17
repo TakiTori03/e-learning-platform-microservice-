@@ -1,5 +1,5 @@
 server:
-  port: 8087
+  port: 9003
 
 spring:
   application:
@@ -7,7 +7,15 @@ spring:
 
   data:
     mongodb:
-      uri: ${MONGODB_URI:mongodb://localhost:27018/e_learning_interaction}
+      uri: ${MONGODB_URI:mongodb://localhost:27019/e_learning_interaction}
+
+  # Security (OAuth2 Keycloak) - Thêm để đồng bộ với toàn hệ thống
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8443/realms/elearning-realm}
+          jwk-set-uri: ${KEYCLOAK_JWKS_URI:http://localhost:8443/realms/elearning-realm/protocol/openid-connect/certs}
 
 eureka:
   instance:

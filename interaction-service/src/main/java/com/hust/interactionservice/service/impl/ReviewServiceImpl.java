@@ -122,7 +122,29 @@ public class ReviewServiceImpl implements ReviewService {
     public List<ReviewResponse> getRepliesByReview(String reviewId) {
         return reviewReplyRepository.findByReviewId(reviewId).stream()
                 .map(reviewReplyMapper::entityToResponse)
-                .collect(java.util.stream.Collectors.toList());
+                .toList();
+    }
+
+    @Override
+    public List<com.hust.interactionservice.dto.response.InternalCourseRatingResponse> getCourseRatingsBulk(List<String> courseIds) {
+        List<Review> allReviews = reviewRepository.findByCourseIdIn(courseIds);
+
+        Map<String, List<Review>> grouped = allReviews.stream()
+                .collect(Collectors.groupingBy(Review::getCourseId));
+
+        return courseIds.stream().map(cid -> {
+            List<Review> courseReviews = grouped.getOrDefault(cid, List.of());
+            long count = courseReviews.size();
+            double avg = count > 0 
+                    ? courseReviews.stream().mapToDouble(Review::getRatingStar).average().orElse(0.0) 
+                    : 0.0;
+
+            return com.hust.interactionservice.dto.response.InternalCourseRatingResponse.builder()
+                    .courseId(cid)
+                    .avgRatingStars(Math.round(avg * 10.0) / 10.0)
+                    .numOfReviews(count)
+                    .build();
+        }).toList();
     }
 
     @Override

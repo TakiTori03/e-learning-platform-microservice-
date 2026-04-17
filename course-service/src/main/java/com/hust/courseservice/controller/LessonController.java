@@ -16,13 +16,13 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/lessons")
+@RequestMapping("/lessons")
 @RequiredArgsConstructor
 public class LessonController {
 
     private final LessonService lessonService;
 
-    @PostMapping("/lesson/create")
+    @PostMapping
     public ResponseEntity<ApiResponse<LessonResponse>> create(@RequestBody LessonRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 ApiResponse.<LessonResponse>builder()
@@ -32,7 +32,7 @@ public class LessonController {
         );
     }
 
-    @PutMapping("/lesson/update/{id}")
+    @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<LessonResponse>> update(@PathVariable String id, @RequestBody LessonRequest request) {
         return ResponseEntity.ok(
                 ApiResponse.<LessonResponse>builder()
@@ -42,7 +42,7 @@ public class LessonController {
         );
     }
 
-    @DeleteMapping("/lesson/{id}")
+    @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable String id) {
         lessonService.delete(id);
         return ResponseEntity.ok(
@@ -64,11 +64,15 @@ public class LessonController {
         );
     }
 
-    @GetMapping("/getAllLesson")
-    public ResponseEntity<ApiResponse<ListResponse<LessonResponse>>> getAllLessons(
-            @RequestParam(name = "q", required = false) String text,
-            @PageableDefault Pageable pageable) {
-        return search(text, pageable);
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<LessonResponse>> detail(@PathVariable String id) {
+        return ResponseEntity.ok(
+                ApiResponse.<LessonResponse>builder()
+                        .success(true)
+                        .payload(lessonService.detail(id))
+                        .build()
+        );
     }
 
     @GetMapping("/section/{sectionId}")
@@ -112,7 +116,7 @@ public class LessonController {
         );
     }
 
-    @PostMapping("/lesson/done/{id}")
+    @PostMapping("/done/{id}")
     public ResponseEntity<ApiResponse<Void>> updateDone(@PathVariable String id) {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
         lessonService.updateDone(id, userId);
@@ -133,13 +137,5 @@ public class LessonController {
         );
     }
 
-    @GetMapping("/lesson/{id}")
-    public ResponseEntity<ApiResponse<LessonResponse>> detail(@PathVariable String id) {
-        return ResponseEntity.ok(
-                ApiResponse.<LessonResponse>builder()
-                        .success(true)
-                        .payload(lessonService.detail(id))
-                        .build()
-        );
-    }
+
 }

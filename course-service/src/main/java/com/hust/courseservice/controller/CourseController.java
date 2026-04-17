@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/courses")
+@RequestMapping("/courses")
 @RequiredArgsConstructor
 public class CourseController {
 
@@ -59,6 +59,17 @@ public class CourseController {
                 ApiResponse.<ListResponse<CourseResponse>>builder()
                         .success(true)
                         .payload(courseService.search(text, pageable))
+                        .build()
+        );
+    }
+
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<CourseResponse>> detail(@PathVariable String id) {
+        return ResponseEntity.ok(
+                ApiResponse.<CourseResponse>builder()
+                        .success(true)
+                        .payload(courseService.detail(id))
                         .build()
         );
     }
@@ -127,17 +138,9 @@ public class CourseController {
         );
     }
 
-    @GetMapping("/course/{id}")
-    public ResponseEntity<ApiResponse<CourseResponse>> detail(@PathVariable String id) {
-        return ResponseEntity.ok(
-                ApiResponse.<CourseResponse>builder()
-                        .success(true)
-                        .payload(courseService.detail(id))
-                        .build()
-        );
-    }
 
-    @GetMapping("/course/enrolled/{id}")
+
+    @GetMapping("/enrolled/{id}")
     public ResponseEntity<ApiResponse<CourseResponse>> getEnrolledDetail(@PathVariable String id) {
         return ResponseEntity.ok(
                 ApiResponse.<CourseResponse>builder()
@@ -147,7 +150,7 @@ public class CourseController {
         );
     }
 
-    @GetMapping("/course/detail/{id}")
+    @GetMapping("/detail/{id}")
     public ResponseEntity<ApiResponse<CourseResponse>> getFullDetail(@PathVariable String id) {
         return ResponseEntity.ok(
                 ApiResponse.<CourseResponse>builder()
@@ -157,7 +160,7 @@ public class CourseController {
         );
     }
 
-    @PostMapping("/course/increase-view/{id}")
+    @PostMapping("/increase-view/{id}")
     public ResponseEntity<ApiResponse<Void>> increaseView(@PathVariable String id) {
         courseService.increaseView(id);
         return ResponseEntity.ok(
@@ -167,7 +170,7 @@ public class CourseController {
         );
     }
 
-    @GetMapping("/course/getUserByCourse/{id}")
+    @GetMapping("/user/getUserByCourse/{id}")
     public ResponseEntity<ApiResponse<List<String>>> getUsersByCourseId(@PathVariable String id) {
         return ResponseEntity.ok(
                 ApiResponse.<List<String>>builder()
@@ -177,7 +180,7 @@ public class CourseController {
         );
     }
 
-    @PatchMapping("/course/update-active-status/{id}")
+    @PatchMapping("/update-active-status/{id}")
     public ResponseEntity<ApiResponse<Void>> updateStatus(@PathVariable String id) {
         courseService.updateStatus(id);
         return ResponseEntity.ok(
@@ -197,7 +200,7 @@ public class CourseController {
         );
     }
 
-    @GetMapping("/course/histories/{id}")
+    @GetMapping("/histories/{id}")
     public ResponseEntity<ApiResponse<ListResponse<Object>>> getHistories(
             @PathVariable String id,
             @RequestParam(defaultValue = "1") int page,

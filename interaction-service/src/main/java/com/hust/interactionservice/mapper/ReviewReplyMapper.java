@@ -13,7 +13,5 @@ public interface ReviewReplyMapper extends BaseMapper<ReviewReply, Object, Revie
     @Override
     @Mapping(target = "ratingStar", ignore = true)
     @Mapping(target = "title", ignore = true)
-    @Mapping(target = "orderId", ignore = true)
-    @Mapping(target = "courseId", ignore = true)
     ReviewResponse entityToResponse(ReviewReply entity);
 }

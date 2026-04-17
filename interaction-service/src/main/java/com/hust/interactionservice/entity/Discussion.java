@@ -14,6 +14,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 public class Discussion extends BaseDocument {
     private String code;
     private String courseId; // Monolith có courseId
+    private String sectionId;
     private String lessonId;
     private String userId;
     private String content; // Tương ứng với 'comments' bên Monolith

@@ -51,4 +51,9 @@ public interface AppConstants {
         String ROLE = "Role";
         String SESSION = "Session";
     }
+
+    interface Upload_Strategies{
+         String CLOUDINARY_TYPE = "CLOUDINARY";
+         String LOCAL_TYPE = "LOCAL";
+    }
 }

@@ -20,10 +20,8 @@ public class UserRegistrationRequest {
     private String email;
 
     @NotBlank
-    @JsonProperty("first_name")
     private String firstName;
 
     @NotBlank
-    @JsonProperty("last_name")
     private String lastName;
 }

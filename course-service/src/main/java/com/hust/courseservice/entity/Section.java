@@ -1,6 +1,7 @@
 package com.hust.courseservice.entity;
 
 import com.hust.commonlibrary.entity.BaseDocument;
+import com.hust.courseservice.entity.enums.CourseAccess;
 import lombok.*;
 import org.springframework.data.mongodb.core.index.TextIndexed;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -17,6 +18,6 @@ public class Section extends BaseDocument {
     @TextIndexed
     private String name;
     private String description;
-    private String access; 
+    private CourseAccess access;
     private Integer position;
 }

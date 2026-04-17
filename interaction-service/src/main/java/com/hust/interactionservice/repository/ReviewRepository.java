@@ -15,6 +15,7 @@ public interface ReviewRepository extends MongoRepository<Review, String> {
     Page<Review> findByCourseIdAndRatingStarIn(String courseId, List<Double> stars, Pageable pageable);
     Page<Review> findByCourseIdAndTitleContainingIgnoreCaseAndRatingStarIn(String courseId, String title, List<Double> stars, Pageable pageable);
     
+    List<Review> findByCourseIdIn(List<String> courseIds);
     List<Review> findByCourseId(String courseId);
     Long countByCourseId(String courseId);
 }

@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/sections")
+@RequestMapping("/sections")
 @RequiredArgsConstructor
 public class SectionController {
 
@@ -63,6 +63,16 @@ public class SectionController {
         );
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<SectionResponse>> detail(@PathVariable String id) {
+        return ResponseEntity.ok(
+                ApiResponse.<SectionResponse>builder()
+                        .success(true)
+                        .payload(sectionService.detail(id))
+                        .build()
+        );
+    }
+
     @GetMapping("/course/{courseId}")
     public ResponseEntity<ApiResponse<List<SectionResponse>>> getByCourseId(@PathVariable String courseId) {
         return ResponseEntity.ok(
@@ -73,13 +83,5 @@ public class SectionController {
         );
     }
 
-    @GetMapping("/section/{id}")
-    public ResponseEntity<ApiResponse<SectionResponse>> detail(@PathVariable String id) {
-        return ResponseEntity.ok(
-                ApiResponse.<SectionResponse>builder()
-                        .success(true)
-                        .payload(sectionService.detail(id))
-                        .build()
-        );
-    }
+
 }

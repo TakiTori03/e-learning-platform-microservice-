@@ -3,9 +3,13 @@ package com.hust.courseservice.dto.response;
 import com.hust.commonlibrary.dto.TimeResponse;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
+import java.util.List;
+
+@EqualsAndHashCode(callSuper = true)
 @Data
 @SuperBuilder
 @NoArgsConstructor
@@ -17,4 +21,5 @@ public class SectionResponse extends TimeResponse {
     private String description;
     private String access; 
     private Integer position;
+    private List<LessonResponse> lessons;
 }

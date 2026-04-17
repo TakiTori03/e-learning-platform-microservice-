@@ -4,7 +4,8 @@ import com.hust.commonlibrary.dto.TimeResponse;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
-@Data
+@EqualsAndHashCode(callSuper = true)
+@Getter @Setter
 @SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor

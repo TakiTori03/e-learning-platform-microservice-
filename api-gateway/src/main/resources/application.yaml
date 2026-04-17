@@ -38,10 +38,24 @@ spring:
           filters:
             - StripPrefix=1
 
+        - id: learning-service
+          uri: lb://learning-service
+          predicates:
+            - Path=/learning/**
+          filters:
+            - StripPrefix=1
+
         - id: media-service
           uri: lb://media-service
           predicates:
             - Path=/media/**
+          filters:
+            - StripPrefix=1
+
+        - id: order-service
+          uri: lb://order-service
+          predicates:
+            - Path=/order/**, /payment/**
           filters:
             - StripPrefix=1
 
@@ -64,4 +78,5 @@ eureka:
 logging:
   level:
     org.springframework.cloud.gateway: DEBUG
+    com.hust.apigateway: DEBUG
     root: INFO

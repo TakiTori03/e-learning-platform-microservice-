@@ -18,6 +18,7 @@ public interface LessonRepository extends MongoRepository<Lesson, String> {
     List<Lesson> findAllByCourseIdOrderByPositionAsc(String courseId);
     
     List<Lesson> findAllByCourseIdAndAccessOrderByPositionAsc(String courseId, CourseAccess access);
+    long countByCourseId(String courseId);
 
     Page<Lesson> findAllBy(TextCriteria criteria, Pageable pageable);
 }

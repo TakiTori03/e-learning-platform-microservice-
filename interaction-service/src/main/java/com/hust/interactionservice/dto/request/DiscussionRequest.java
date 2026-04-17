@@ -9,6 +9,7 @@ import lombok.*;
 @AllArgsConstructor
 public class DiscussionRequest {
     private String courseId;
+    private String sectionId;
     private String lessonId;
 
     @NotBlank
