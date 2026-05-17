@@ -23,27 +23,30 @@ public interface AppConstants {
             "/auth/refresh-token"
     };
 
-     interface Token_Constants {
-         String ACCESS_TOKEN = "access_token";
-         String REFRESH_TOKEN = "refresh_token";
-
+    interface Token_Constants {
+        String ACCESS_TOKEN = "access_token";
+        String REFRESH_TOKEN = "refresh_token";
     }
 
-    interface Role_Constants{
-         String ROLE_STUDENT = "STUDENT";
-         String ROLE_INSTRUCTOR = "INSTRUCTOR";
-         String ROLE_ADMIN = "ADMIN";
+    interface Redis_Constants {
+        String APP_PREFIX = "elearning:";
     }
 
-    interface Field_Constants{
-         String ID = "id";
+    interface Role_Constants {
+        String ROLE_STUDENT = "STUDENT";
+        String ROLE_INSTRUCTOR = "INSTRUCTOR";
+        String ROLE_ADMIN = "ADMIN";
+    }
+
+    interface Field_Constants {
+        String ID = "id";
         String SLUG = "slug";
         String NAME = "name";
         String EMAIL = "email";
         String CODE = "code";
     }
 
-    interface Resource_Constants{
+    interface Resource_Constants {
         String COURSE = "Course";
         String USER = "User";
         String CATEGORY = "Category";
@@ -52,8 +55,7 @@ public interface AppConstants {
         String SESSION = "Session";
     }
 
-    interface Upload_Strategies{
-         String CLOUDINARY_TYPE = "CLOUDINARY";
-         String LOCAL_TYPE = "LOCAL";
+    interface Upload_Strategies {
+
     }
 }

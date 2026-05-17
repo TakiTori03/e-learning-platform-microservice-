@@ -1,5 +1,6 @@
 server:
   port: 9001
+  forward-headers-strategy: framework
 
 spring:
   application:
@@ -17,12 +18,14 @@ spring:
           jwk-set-uri: ${KEYCLOAK_JWKS_URI:http://localhost:8443/realms/elearning-realm/protocol/openid-connect/certs}
 
 eureka:
-  client:
-    service-url:
-      defaultZone: ${EUREKA_SERVER:http://localhost:8761/eureka/}
   instance:
     prefer-ip-address: true
     instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER:http://localhost:8761/eureka/}
+    register-with-eureka: true
+    fetch-registry: true
 
 logging:
   level:
@@ -30,3 +33,4 @@ logging:
     org.springframework.security: INFO
     org.springframework.security.oauth2: INFO
     com.hust.courseservice: DEBUG
+    org.springframework.data.mongodb.core.MongoTemplate: DEBUG

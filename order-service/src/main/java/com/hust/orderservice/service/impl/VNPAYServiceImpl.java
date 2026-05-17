@@ -27,7 +27,13 @@ public class VNPAYServiceImpl implements VNPAYService {
     public String createPaymentUrl(String orderId, long amount, String orderInfo, String ipAddress) {
         String vnp_Version = "2.1.0";
         String vnp_Command = "pay";
-        String vnp_TxnRef = orderId + "_" + System.currentTimeMillis();
+        
+        // Nén UUID 36 ký tự thành 22 ký tự để đảm bảo luôn dưới giới hạn 30 của VNPay
+        String vnp_TxnRef = VNPAYUtils.encodeOrderId(orderId);
+
+        // Chuẩn hóa IP (VNPay không hỗ trợ IPv6 localhost)
+        String vnp_IpAddr = (ipAddress.equals("0:0:0:0:0:0:0:1") || ipAddress.equals("[0:0:0:0:0:0:0:1]")) 
+                            ? "127.0.0.1" : ipAddress;
 
         Map<String, String> vnp_Params = new HashMap<>();
         vnp_Params.put("vnp_Version", vnp_Version);
@@ -40,30 +46,35 @@ public class VNPAYServiceImpl implements VNPAYService {
         vnp_Params.put("vnp_OrderType", "other");
         vnp_Params.put("vnp_Locale", "vn");
         vnp_Params.put("vnp_ReturnUrl", returnUrl);
-        vnp_Params.put("vnp_IpAddr", ipAddress);
+        vnp_Params.put("vnp_IpAddr", vnp_IpAddr);
 
         Calendar cld = Calendar.getInstance(TimeZone.getTimeZone("Etc/GMT+7"));
         SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMddHHmmss");
-        String vnp_CreateDate = formatter.format(cld.getTime());
-        vnp_Params.put("vnp_CreateDate", vnp_CreateDate);
+        vnp_Params.put("vnp_CreateDate", formatter.format(cld.getTime()));
 
         cld.add(Calendar.MINUTE, 15);
-        String vnp_ExpireDate = formatter.format(cld.getTime());
-        vnp_Params.put("vnp_ExpireDate", vnp_ExpireDate);
+        vnp_Params.put("vnp_ExpireDate", formatter.format(cld.getTime()));
 
+        // 1. Tính toán chữ ký trên dữ liệu RAW (chuẩn 2.1.0)
+        String vnp_SecureHash = VNPAYUtils.hashAllFields(hashSecret, vnp_Params);
+        
+        // 2. Tạo Query String với dữ liệu đã ENCODE
         String queryUrl = VNPAYUtils.buildQueryUrl(vnp_Params);
-        String vnp_SecureHash = VNPAYUtils.hmacSHA512(hashSecret, queryUrl);
-        queryUrl += "&vnp_SecureHash=" + vnp_SecureHash;
 
-        return vnpPayUrl + "?" + queryUrl;
+        return vnpPayUrl + "?" + queryUrl + "&vnp_SecureHash=" + vnp_SecureHash;
     }
 
     @Override
-    public boolean verifyCallback(Map<String, String> queryParams) {
+    public Boolean verifyCallback(Map<String, String> queryParams) {
         String vnp_SecureHash = queryParams.get("vnp_SecureHash");
-        Map<String, String> fields = new HashMap<>(queryParams);
-        fields.remove("vnp_SecureHash");
-        fields.remove("vnp_SecureHashType");
+        Map<String, String> fields = new HashMap<>();
+        for (Map.Entry<String, String> entry : queryParams.entrySet()) {
+            String key = entry.getKey();
+            String value = entry.getValue();
+            if (key != null && key.startsWith("vnp_") && !key.equals("vnp_SecureHash") && !key.equals("vnp_SecureHashType")) {
+                fields.put(key, value);
+            }
+        }
 
         String checkSum = VNPAYUtils.hashAllFields(hashSecret, fields);
         return checkSum.equalsIgnoreCase(vnp_SecureHash);

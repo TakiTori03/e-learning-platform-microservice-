@@ -1,14 +1,18 @@
 server:
   port: 9004
+  forward-headers-strategy: framework
 
 spring:
   application:
     name: order-service
+  
+  # Database Configuration
   datasource:
-    url: ${JDBC_DATABASE_URL:jdbc:postgresql://localhost:5433/e_learning_order}
-    username: ${JDBC_DATABASE_USERNAME:postgres}
-    password: ${JDBC_DATABASE_PASSWORD:}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:order_db}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
+  
   jpa:
     hibernate:
       ddl-auto: update
@@ -17,6 +21,34 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # Security Configuration (OAuth2 Resource Server)
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8443/realms/elearning-realm}
+          jwk-set-uri: ${KEYCLOAK_JWKS_URI:http://localhost:8443/realms/elearning-realm/protocol/openid-connect/certs}
+
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVER:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 10
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+    consumer:
+      group-id: order-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.hust.commonlibrary.event"
+        spring.json.type.mapping: enrollmentSuccessEvent:com.hust.commonlibrary.event.EnrollmentSuccessEvent,orderPaidEvent:com.hust.commonlibrary.event.OrderPaidEvent
 
 eureka:
   instance:
@@ -33,10 +65,11 @@ logging:
     root: INFO
     com.hust.orderservice: DEBUG
     org.hibernate.SQL: DEBUG
+    org.springframework.security: INFO
 
 payment:
   vnpay:
-    tmn-code: B0G7MQOH
-    hash-secret: MUQDZO18PYW9GLBHMISDS442I9SARIHT
+    tmn-code: ${VNPAY_TMN_CODE:DSN2ECPX}
+    hash-secret: ${VNPAY_HASH_SECRET:A0M6XA158VQMXQJ7TMB96L6MB6DHO1JA}
     url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
-    return-url: http://localhost:3000/order/vnpay-return
+    return-url: ${VNPAY_RETURN_URL:http://localhost:3000/order/vnpay-return}

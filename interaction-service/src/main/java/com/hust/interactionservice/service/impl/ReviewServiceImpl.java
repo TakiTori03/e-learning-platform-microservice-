@@ -13,6 +13,7 @@ import com.hust.interactionservice.service.ReviewService;
 import com.hust.interactionservice.utils.AppUtils;
 import com.hust.commonlibrary.dto.ListResponse;
 import com.hust.commonlibrary.utils.SecurityUtils;
+import com.hust.commonlibrary.annotation.CheckCourseOwner;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -104,6 +105,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
+    @CheckCourseOwner(domainId = "#reviewId", resolver = "reviewResolver")
     public ReviewResponse createReply(String reviewId, String content) {
         String userId = SecurityUtils.getCurrentUserIdOrThrow();
         ReviewReply reply = ReviewReply.builder()

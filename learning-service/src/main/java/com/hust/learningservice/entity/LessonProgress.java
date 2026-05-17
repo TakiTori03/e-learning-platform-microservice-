@@ -26,5 +26,5 @@ public class LessonProgress extends BaseDocument {
 
     private Boolean isDone;
     
-    private Double lastWatchedTime; // In seconds
+    private Double lastWatchedTime;
 }

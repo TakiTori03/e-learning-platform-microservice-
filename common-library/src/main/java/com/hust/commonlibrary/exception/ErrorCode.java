@@ -28,6 +28,8 @@ public enum ErrorCode {
     SESSION_NOT_EXISTED(1012, MessageKeys.SESSION_NOT_EXISTED, HttpStatus.BAD_REQUEST),
     RESET_TOKEN_ALREADY_SENT(1014, MessageKeys.ACCOUNT_RESETKEY_ALREADY_SENT, HttpStatus.BAD_REQUEST),
     ACCOUNT_IS_DELETED(1015, MessageKeys.ACCOUNT_IS_DELETED, HttpStatus.GONE),
+    CONCURRENT_REQUEST(1016, "Hệ thống đang bận xử lý yêu cầu trước đó, vui lòng thử lại sau", HttpStatus.TOO_MANY_REQUESTS),
+    TOO_MANY_REQUESTS(1017, "Bạn đã vượt quá giới hạn lượt gọi cho phép, vui lòng chậm lại", HttpStatus.TOO_MANY_REQUESTS),
 
     // Validation
     VALIDATION_ERROR(400, "Dữ liệu không hợp lệ", HttpStatus.BAD_REQUEST),

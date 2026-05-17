@@ -19,12 +19,9 @@ import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
 import static com.hust.commonlibrary.constant.AppConstants.PUBLIC_API_PATH;
 
-import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -65,12 +62,12 @@ public class SecurityConfig {
                         .requestMatchers(PUBLIC_API_PATH).permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)) // Cần thiết cho luồng OAuth2 Login Redirect
+                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint)
                         .accessDeniedHandler(customAccessDeniedHandler)
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
-                // Kích hoạt chuẩn OAuth2 Login
+
                 .oauth2Login(oauth2 -> oauth2
                         .successHandler(successHandler)
                 );

@@ -30,4 +30,14 @@ public class OrderInternalController {
                 .payload(orderService.checkIfBought(userId, courseId))
                 .build();
     }
+
+    @GetMapping("/check-bought-bulk")
+    public ApiResponse<Map<String, Boolean>> checkIfBoughtBulk(
+            @RequestParam String userId, 
+            @RequestParam List<String> courseIds) {
+        return ApiResponse.<Map<String, Boolean>>builder()
+                .success(true)
+                .payload(orderService.checkIfBoughtBulk(userId, courseIds))
+                .build();
+    }
 }

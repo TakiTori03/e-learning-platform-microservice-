@@ -1,27 +1,26 @@
-package com.hust.orderservice.dto;
+package com.hust.orderservice.dto.response;
 
 
+import com.hust.commonlibrary.dto.TimeResponse;
 import com.hust.orderservice.constant.OrderStatus;
 
 import com.hust.orderservice.entity.OrderItem;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 
-import java.time.Instant;
 import java.util.List;
 
-@Data
-@Builder
+@EqualsAndHashCode(callSuper = true)
+@Getter @Setter
+@SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
-public class OrderResponse {
+public class OrderResponse extends TimeResponse {
     private String id;
     private String userId;
-    private String userEmail;
-    private String userName;
     private Double totalPrice;
     private Double vatFee;
     private String note;
     private OrderStatus status;
     private List<OrderItem> items;
-    private Instant createdAt;
 }

@@ -3,6 +3,7 @@ package com.hust.courseservice.controller.internal;
 import com.hust.commonlibrary.dto.ApiResponse;
 import com.hust.courseservice.dto.response.CourseResponse;
 import com.hust.courseservice.repository.LessonRepository;
+import com.hust.courseservice.service.CourseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 public class CourseInternalController {
 
     private final LessonRepository lessonRepository;
-    private final com.hust.courseservice.service.CourseService courseService;
+    private final CourseService courseService;
 
     @GetMapping("/{courseId}/lesson-count")
     public ApiResponse<Long> getLessonCount(@PathVariable String courseId) {
@@ -24,8 +25,8 @@ public class CourseInternalController {
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<CourseResponse> getCourseById(@PathVariable String id) {
-        return ApiResponse.<com.hust.courseservice.dto.response.CourseResponse>builder()
+    public ApiResponse<CourseResponse> getCourseDetail(@PathVariable String id) {
+        return ApiResponse.<CourseResponse>builder()
                 .success(true)
                 .payload(courseService.detail(id))
                 .build();

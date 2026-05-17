@@ -13,6 +13,7 @@ import java.util.List;
 
 import org.keycloak.admin.client.CreatedResponseUtil;
 import org.keycloak.representations.AccessTokenResponse;
+import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.http.HttpEntity;
@@ -109,6 +110,27 @@ public class AuthRepository {
             throw e;
         } catch (Exception e) {
             log.error("Lỗi kết nối tới Keycloak Server: {}", e.getMessage());
+            throw new AppException(ErrorCode.KEYCLOAK_ERROR);
+        }
+    }
+
+    /**
+     * Cập nhật mật khẩu cho User
+     */
+    public void resetPassword(String userId, String newPassword) {
+        try {
+            CredentialRepresentation cred = new CredentialRepresentation();
+            cred.setTemporary(false);
+            cred.setType(CredentialRepresentation.PASSWORD);
+            cred.setValue(newPassword);
+
+            keycloakAdminClient.realm(keycloakConfig.getRealm())
+                    .users()
+                    .get(userId)
+                    .resetPassword(cred);
+            log.info("BFF: Reset password for user {}", userId);
+        } catch (Exception e) {
+            log.error("Lỗi khi reset password trên Keycloak: {}", e.getMessage());
             throw new AppException(ErrorCode.KEYCLOAK_ERROR);
         }
     }

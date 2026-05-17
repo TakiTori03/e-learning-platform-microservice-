@@ -3,29 +3,39 @@ package com.hust.courseservice.service.impl;
 import com.hust.commonlibrary.constant.AppConstants;
 import com.hust.commonlibrary.dto.ListResponse;
 import com.hust.commonlibrary.exception.payload.ResourceNotFoundException;
+import com.hust.commonlibrary.utils.SecurityUtils;
 import com.hust.courseservice.dto.request.SectionRequest;
 import com.hust.courseservice.dto.response.SectionResponse;
+import com.hust.courseservice.entity.Course;
 import com.hust.courseservice.entity.Section;
 import com.hust.courseservice.mapper.SectionMapper;
+import com.hust.courseservice.repository.CourseRepository;
 import com.hust.courseservice.repository.SectionRepository;
 import com.hust.courseservice.service.SectionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.core.query.TextCriteria;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class SectionServiceImpl implements SectionService {
 
     private final SectionRepository sectionRepository;
+    private final CourseRepository courseRepository;
     private final SectionMapper sectionMapper;
 
     @Override
     public SectionResponse create(SectionRequest request) {
+        validateCourseOwnership(request.getCourseId());
         Section section = sectionMapper.requestToEntity(request);
         section = sectionRepository.save(section);
         return sectionMapper.entityToResponse(section);
@@ -38,19 +48,26 @@ public class SectionServiceImpl implements SectionService {
                         AppConstants.Resource_Constants.SESSION,
                         AppConstants.Field_Constants.ID,
                         id));
+        
+        validateCourseOwnership(section.getCourseId());
+        
         sectionMapper.partialUpdate(section, request);
         section = sectionRepository.save(section);
         return sectionMapper.entityToResponse(section);
     }
 
     @Override
-    public void delete(String id) {
-        Section section = sectionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        AppConstants.Resource_Constants.SESSION,
-                        AppConstants.Field_Constants.ID,
-                        id));
-        sectionRepository.delete(section);
+    @Transactional
+    public void delete(List<String> ids) {
+        if (ids == null || ids.isEmpty()) return;
+        List<Section> sections = sectionRepository.findAllById(ids);
+        
+        sections.stream()
+                .map(Section::getCourseId)
+                .distinct()
+                .forEach(this::validateCourseOwnership);
+        
+        sectionRepository.deleteAll(sections);
     }
 
     @Override
@@ -78,5 +95,53 @@ public class SectionServiceImpl implements SectionService {
     @Override
     public List<SectionResponse> getByCourseId(String courseId) {
         return sectionMapper.entityToResponse(sectionRepository.findAllByCourseIdOrderByPositionAsc(courseId));
+    }
+
+    @Override
+    @Transactional
+    public void reorder(List<String> sectionIds) {
+        if (sectionIds == null || sectionIds.isEmpty()) return;
+        
+        List<Section> sections = sectionRepository.findAllById(sectionIds);
+        
+        sections.stream()
+                .map(Section::getCourseId)
+                .distinct()
+                .forEach(this::validateCourseOwnership);
+
+        Map<String, Section> sectionMap = sections.stream()
+                .collect(Collectors.toMap(Section::getId, s -> s));
+        
+        List<Section> toUpdate = new java.util.ArrayList<>();
+        for (int i = 0; i < sectionIds.size(); i++) {
+            Section section = sectionMap.get(sectionIds.get(i));
+            if (section != null) {
+                section.setPosition(i + 1);
+                toUpdate.add(section);
+            }
+        }
+        
+        if (!toUpdate.isEmpty()) {
+            sectionRepository.saveAll(toUpdate);
+        }
+    }
+
+    private void validateCourseOwnership(String courseId) {
+        if (courseId == null) {
+            throw new IllegalArgumentException("Course ID cannot be null");
+        }
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        
+        if (isAdmin) return;
+
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Course", "id", courseId));
+        
+        String currentUserId = SecurityUtils.getCurrentUserIdOrThrow();
+        if (!course.getInstructorId().equals(currentUserId)) {
+            throw new AccessDeniedException("You do not have permission to perform this action on this course content!");
+        }
     }
 }

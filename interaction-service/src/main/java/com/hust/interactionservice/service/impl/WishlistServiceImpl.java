@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -47,7 +46,7 @@ public class WishlistServiceImpl implements WishlistService {
         String userId = SecurityUtils.getCurrentUserIdOrThrow();
         return wishlistRepository.findByUserId(userId).stream()
                 .map(wishlistMapper::entityToResponse)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override

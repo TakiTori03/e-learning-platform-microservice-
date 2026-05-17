@@ -4,10 +4,9 @@ import com.hust.commonlibrary.dto.ApiResponse;
 import com.hust.identityservice.dto.response.UserResponse;
 import com.hust.identityservice.service.UserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/internal/users")
@@ -24,8 +23,8 @@ public class UserInternalController {
                 .build();
     }
 
-    @org.springframework.web.bind.annotation.PostMapping("/bulk")
-    public ApiResponse<java.util.List<UserResponse>> getUsersByIds(@org.springframework.web.bind.annotation.RequestBody java.util.List<String> ids) {
+    @PostMapping("/bulk")
+    public ApiResponse<List<UserResponse>> getUsersByIds(@RequestBody List<String> ids) {
         return ApiResponse.<java.util.List<UserResponse>>builder()
                 .success(true)
                 .payload(userService.getUsersByIds(ids))

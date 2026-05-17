@@ -54,7 +54,7 @@ public class Course extends BaseDocument {
 
     private String instructorId;
 
-    @DocumentReference
+    @DocumentReference(lazy = true)
     private Category category;
 
     private List<String> requirements;

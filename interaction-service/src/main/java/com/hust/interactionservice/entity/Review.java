@@ -12,12 +12,12 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Review extends BaseDocument {
-    private String code; // Lấy từ coreHelper.getCodeDefault("REVIEW")
+    private String code;
     private String courseId;
     private String orderId;
     private String userId;
     private String title;
     private String content;
-    private Double ratingStar; // Hỗ trợ 0.5 sao như monolith
+    private Double ratingStar;
     private Boolean isHidden;
 }

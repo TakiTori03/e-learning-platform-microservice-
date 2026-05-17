@@ -21,10 +21,12 @@
         <module>common-library</module>
         <module>identity-service</module>
         <module>course-service</module>
-<!--        <module>media-service</module>-->
+        <module>media-service</module>
         <module>interaction-service</module>
         <module>order-service</module>
         <module>learning-service</module>
+        <module>notification-service</module>
+        <module>assessment-service</module>
     </modules>
 
     <properties>

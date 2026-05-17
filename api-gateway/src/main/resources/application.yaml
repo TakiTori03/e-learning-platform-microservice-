@@ -55,9 +55,21 @@ spring:
         - id: order-service
           uri: lb://order-service
           predicates:
-            - Path=/order/**, /payment/**
+            - Path=/order/**
           filters:
             - StripPrefix=1
+
+        - id: assessment-service
+          uri: lb://assessment-service
+          predicates:
+            - Path=/assessment/**
+          filters:
+            - StripPrefix=1
+
+        - id: aggregator-service
+          uri: http://localhost:4000
+          predicates:
+            - Path=/api/v1/bff/**
 
       globalcors:
         cors-configurations:
@@ -68,15 +80,17 @@ spring:
             allowCredentials: true
 
 eureka:
-  client:
-    service-url:
-      defaultZone: ${EUREKA_SERVER:http://localhost:8761/eureka/}
   instance:
     prefer-ip-address: true
     instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER:http://localhost:8761/eureka/}
+    register-with-eureka: true
+    fetch-registry: true
 
 logging:
   level:
-    org.springframework.cloud.gateway: DEBUG
-    com.hust.apigateway: DEBUG
     root: INFO
+    org.springframework.cloud.gateway: INFO
+    com.hust.apigateway: DEBUG

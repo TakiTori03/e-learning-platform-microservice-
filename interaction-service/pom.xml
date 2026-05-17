@@ -19,6 +19,12 @@
             <artifactId>spring-boot-starter-data-mongodb</artifactId>
         </dependency>
 
+        <!-- Redis Cache Support for AOP and Session -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
         <!-- Security & Infrastructure -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

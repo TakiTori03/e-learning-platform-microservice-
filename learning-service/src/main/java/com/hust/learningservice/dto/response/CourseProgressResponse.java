@@ -15,6 +15,7 @@ public class CourseProgressResponse {
     private String userId;
     private String courseId;
     private List<String> finishedLessonIds;
-    private Double progressPercentage;
+    private Double progress;
     private Boolean isEnrolled;
+    private String lastAccessedLessonId;
 }

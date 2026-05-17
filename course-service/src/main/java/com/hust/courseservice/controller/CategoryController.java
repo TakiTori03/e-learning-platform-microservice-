@@ -85,7 +85,7 @@ public class CategoryController {
 
 
 
-    @PatchMapping("/category/update-active-status/{id}")
+    @PatchMapping("/{id}/active-status")
     public ResponseEntity<ApiResponse<Void>> updateStatus(@PathVariable String id) {
         categoryService.updateStatus(id);
         return ResponseEntity.ok(

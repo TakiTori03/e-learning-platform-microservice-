@@ -1,6 +1,7 @@
 package com.hust.orderservice.utils;
 
 import java.net.URLEncoder;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import javax.crypto.Mac;
@@ -8,6 +9,9 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class VNPAYUtils {
 
+    /**
+     * Hashing data using HMAC-SHA512
+     */
     public static String hmacSHA512(final String key, final String data) {
         try {
             if (key == null || data == null) {
@@ -29,43 +33,86 @@ public class VNPAYUtils {
         }
     }
 
+    /**
+     * Build the raw data string for hashing (v2.1.0 standard: sorted keys, raw values)
+     */
     public static String hashAllFields(String hashSecret, Map<String, String> fields) {
-        List<String> fieldNames = new ArrayList<>(fields.keySet());
-        Collections.sort(fieldNames);
-        StringBuilder sb = new StringBuilder();
-        Iterator<String> itr = fieldNames.iterator();
-        while (itr.hasNext()) {
-            String fieldName = itr.next();
-            String fieldValue = fields.get(fieldName);
-            if ((fieldValue != null) && (fieldValue.length() > 0)) {
-                sb.append(fieldName);
-                sb.append("=");
-                sb.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII));
-                if (itr.hasNext()) {
-                    sb.append("&");
+        try {
+            List<String> fieldNames = new ArrayList<>(fields.keySet());
+            Collections.sort(fieldNames);
+            StringBuilder hashData = new StringBuilder();
+            Iterator<String> itr = fieldNames.iterator();
+            while (itr.hasNext()) {
+                String fieldName = itr.next();
+                String fieldValue = fields.get(fieldName);
+                if ((fieldValue != null) && (fieldValue.length() > 0)) {
+                    hashData.append(fieldName);
+                    hashData.append('=');
+                    hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII.toString()));
+                    if (itr.hasNext()) {
+                        hashData.append('&');
+                    }
                 }
             }
+            return hmacSHA512(hashSecret, hashData.toString());
+        } catch (Exception e) {
+            return "";
         }
-        return hmacSHA512(hashSecret, sb.toString());
     }
 
+    /**
+     * Build the query string for URL (UTF-8, space encoded as %20)
+     */
     public static String buildQueryUrl(Map<String, String> fields) {
-        List<String> fieldNames = new ArrayList<>(fields.keySet());
-        Collections.sort(fieldNames);
-        StringBuilder sb = new StringBuilder();
-        Iterator<String> itr = fieldNames.iterator();
-        while (itr.hasNext()) {
-            String fieldName = itr.next();
-            String fieldValue = fields.get(fieldName);
-            if ((fieldValue != null) && (fieldValue.length() > 0)) {
-                sb.append(URLEncoder.encode(fieldName, StandardCharsets.US_ASCII));
-                sb.append("=");
-                sb.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII));
-                if (itr.hasNext()) {
-                    sb.append("&");
+        try {
+            List<String> fieldNames = new ArrayList<>(fields.keySet());
+            Collections.sort(fieldNames);
+            StringBuilder query = new StringBuilder();
+            Iterator<String> itr = fieldNames.iterator();
+            while (itr.hasNext()) {
+                String fieldName = itr.next();
+                String fieldValue = fields.get(fieldName);
+                if ((fieldValue != null) && (fieldValue.length() > 0)) {
+                    query.append(URLEncoder.encode(fieldName, StandardCharsets.US_ASCII.toString()));
+                    query.append('=');
+                    query.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII.toString()));
+                    if (itr.hasNext()) {
+                        query.append('&');
+                    }
                 }
             }
+            return query.toString();
+        } catch (Exception e) {
+            return "";
         }
-        return sb.toString();
+    }
+
+    /**
+     * Compress UUID (36 chars) to Base64 (22 chars) to fit VNPay's 30-char limit
+     */
+    public static String encodeOrderId(String orderId) {
+        try {
+            UUID uuid = UUID.fromString(orderId);
+            ByteBuffer bb = ByteBuffer.wrap(new byte[16]);
+            bb.putLong(uuid.getMostSignificantBits());
+            bb.putLong(uuid.getLeastSignificantBits());
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(bb.array());
+        } catch (Exception e) {
+            return orderId; // Fallback if not a UUID
+        }
+    }
+
+    /**
+     * Decompress Base64 (22 chars) back to UUID (36 chars)
+     */
+    public static String decodeOrderId(String encoded) {
+        try {
+            byte[] bytes = Base64.getUrlDecoder().decode(encoded);
+            ByteBuffer bb = ByteBuffer.wrap(bytes);
+            UUID uuid = new UUID(bb.getLong(), bb.getLong());
+            return uuid.toString();
+        } catch (Exception e) {
+            return encoded; // Fallback
+        }
     }
 }

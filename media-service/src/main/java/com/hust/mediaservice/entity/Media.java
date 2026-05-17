@@ -20,6 +20,17 @@ public class Media extends BaseDocument {
     private String contentType;
     private Long fileSize;
     private String url;
+    private String thumbnailUrl;
     private StorageProvider provider;
     private String ownerId;
+    private String referenceId;
+    private String hlsFolderName;
+    private String rawFileKey;
+
+    @Builder.Default
+    private MediaStatus status = MediaStatus.READY;
+
+    public enum MediaStatus {
+        PENDING, PROCESSING, READY, FAILED
+    }
 }

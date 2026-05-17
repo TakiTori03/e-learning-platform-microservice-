@@ -4,7 +4,7 @@ services:
     image: mongo:latest
     container_name: elearning-learning-db
     environment:
-      MONGO_INITDB_DATABASE: e_learning_learning
+      MONGO_INITDB_DATABASE: learning_db
     ports:
       - "27018:27017"
     volumes:

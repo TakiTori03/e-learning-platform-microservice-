@@ -52,6 +52,9 @@ public class User extends BaseEntity<UUID> {
     @Column(columnDefinition = "jsonb")
     private Map<String, String> socials;
 
+    @Column(length = 50)
+    private String role;
+
     @Builder.Default
     @Column(name = "show_profile")
     boolean showProfile = true;

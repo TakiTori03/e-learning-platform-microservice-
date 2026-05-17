@@ -18,7 +18,7 @@ public class OrderItem {
     private String name;
     
     @Column(precision = 19, scale = 2)
-    private BigDecimal finalPrice; // Chuyển sang BigDecimal để đồng bộ tài chính
+    private BigDecimal finalPrice;
     
     private String thumbnail;
 }

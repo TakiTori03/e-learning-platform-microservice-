@@ -3,8 +3,8 @@ package com.hust.orderservice.mapper;
 import com.hust.commonlibrary.mapper.BaseMapper;
 import com.hust.commonlibrary.mapper.GlobalMapperConfiguration;
 
-import com.hust.orderservice.dto.OrderRequest;
-import com.hust.orderservice.dto.OrderResponse;
+import com.hust.orderservice.dto.request.OrderRequest;
+import com.hust.orderservice.dto.response.OrderResponse;
 import com.hust.orderservice.entity.Order;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;

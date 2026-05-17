@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface ProgressRepository extends MongoRepository<LessonProgress, String> {
     List<LessonProgress> findByUserIdAndCourseId(String userId, String courseId);
     Optional<LessonProgress> findByUserIdAndCourseIdAndLessonId(String userId, String courseId, String lessonId);
+    List<LessonProgress> findAllByUserIdAndCourseIdIn(String userId, List<String> courseIds);
 }

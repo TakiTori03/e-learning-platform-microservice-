@@ -1,15 +1,15 @@
 server:
   port: 9002
+  forward-headers-strategy: framework
 
 spring:
   application:
     name: media-service
-  
+
   data:
     mongodb:
-      uri: ${MONGODB_URI:mongodb://localhost:27020/e_learning_media}
-  
-  # Security (OAuth2 Keycloak) - Thêm để đồng bộ
+      uri: ${MONGODB_URI:mongodb://localhost:27020/media_db}
+
   security:
     oauth2:
       resourceserver:
@@ -19,30 +19,35 @@ spring:
 
   servlet:
     multipart:
-      max-file-size: 100MB
-      max-request-size: 100MB
+      max-file-size: 500MB
+      max-request-size: 500MB
 
 eureka:
-  client:
-    service-url:
-      defaultZone: ${EUREKA_SERVER:http://localhost:8761/eureka/}
   instance:
     prefer-ip-address: true
     instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER:http://localhost:8761/eureka/}
+    register-with-eureka: true
+    fetch-registry: true
 
 app:
   storage:
-    provider: LOCAL # LOCAL, CLOUDINARY, S3
-    local:
-      path: ./uploads
-      base-url: http://localhost:8086/files/
-  
-  cloudinary:
-    cloud-name: ${CLOUDINARY_CLOUD_NAME:}
-    api-key: ${CLOUDINARY_API_KEY:}
-    api-secret: ${CLOUDINARY_API_SECRET:}
+    local-path: ${STORAGE_LOCAL_PATH:./uploads}
+
+  ffmpeg:
+    path: ${FFMPEG_PATH:ffmpeg}
+
+  minio:
+    endpoint: ${MINIO_ENDPOINT:http://localhost:9100}
+    access-key: ${MINIO_ACCESS_KEY:minioadmin}
+    secret-key: ${MINIO_SECRET_KEY:minioadmin}
+    bucket-name: ${MINIO_BUCKET:elearning-media}
+    region: ${MINIO_REGION:us-east-1}
 
 logging:
   level:
     root: INFO
     com.hust.mediaservice: DEBUG
+    org.springframework.security: INFO

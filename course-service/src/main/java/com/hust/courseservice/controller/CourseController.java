@@ -6,10 +6,12 @@ import com.hust.courseservice.dto.request.CourseRequest;
 import com.hust.courseservice.dto.response.CourseResponse;
 import com.hust.courseservice.service.CourseService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,11 +19,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/courses")
 @RequiredArgsConstructor
+@Slf4j
 public class CourseController {
 
     private final CourseService courseService;
 
     @PostMapping
+    @PreAuthorize("hasRole('INSTRUCTOR')")
     public ResponseEntity<ApiResponse<CourseResponse>> create(@RequestBody CourseRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 ApiResponse.<CourseResponse>builder()
@@ -32,6 +36,7 @@ public class CourseController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('INSTRUCTOR')")
     public ResponseEntity<ApiResponse<CourseResponse>> update(@PathVariable String id, @RequestBody CourseRequest request) {
         return ResponseEntity.ok(
                 ApiResponse.<CourseResponse>builder()
@@ -42,6 +47,7 @@ public class CourseController {
     }
 
     @PostMapping("/delete")
+    @PreAuthorize("hasRole('INSTRUCTOR')")
     public ResponseEntity<ApiResponse<Void>> delete(@RequestBody List<String> ids) {
         courseService.delete(ids);
         return ResponseEntity.ok(
@@ -53,12 +59,17 @@ public class CourseController {
 
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<ListResponse<CourseResponse>>> search(
-            @RequestParam(name = "q", required = false) String text,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) List<String> authors,
+            @RequestParam(required = false) List<String> topics,
+            @RequestParam(required = false) List<String> levels,
+            @RequestParam(required = false) List<String> prices,
             @PageableDefault Pageable pageable) {
+
         return ResponseEntity.ok(
                 ApiResponse.<ListResponse<CourseResponse>>builder()
                         .success(true)
-                        .payload(courseService.search(text, pageable))
+                        .payload(courseService.search(q, authors, topics, levels, prices, pageable))
                         .build()
         );
     }
@@ -96,60 +107,6 @@ public class CourseController {
         );
     }
 
-    @GetMapping("/suggested/{userId}")
-    public ResponseEntity<ApiResponse<List<CourseResponse>>> getSuggestedCourses(
-            @PathVariable String userId,
-            @RequestParam(defaultValue = "5") int limit) {
-        return ResponseEntity.ok(
-                ApiResponse.<List<CourseResponse>>builder()
-                        .success(true)
-                        .payload(courseService.getSuggestedCourses(userId, limit))
-                        .build()
-        );
-    }
-
-    @GetMapping("/ordered/{userId}")
-    public ResponseEntity<ApiResponse<List<CourseResponse>>> getCoursesOrderedByUser(@PathVariable String userId) {
-        return ResponseEntity.ok(
-                ApiResponse.<List<CourseResponse>>builder()
-                        .success(true)
-                        .payload(courseService.getCoursesOrderedByUser(userId))
-                        .build()
-        );
-    }
-
-    @GetMapping("/id/wishlist/{userId}")
-    public ResponseEntity<ApiResponse<List<String>>> getWishlistIds(@PathVariable String userId) {
-        return ResponseEntity.ok(
-                ApiResponse.<List<String>>builder()
-                        .success(true)
-                        .payload(courseService.getWishlistIds(userId))
-                        .build()
-        );
-    }
-
-    @GetMapping("/wishlist/{userId}")
-    public ResponseEntity<ApiResponse<List<CourseResponse>>> getWishlistCourses(@PathVariable String userId) {
-        return ResponseEntity.ok(
-                ApiResponse.<List<CourseResponse>>builder()
-                        .success(true)
-                        .payload(courseService.getWishlistCourses(userId))
-                        .build()
-        );
-    }
-
-
-
-    @GetMapping("/enrolled/{id}")
-    public ResponseEntity<ApiResponse<CourseResponse>> getEnrolledDetail(@PathVariable String id) {
-        return ResponseEntity.ok(
-                ApiResponse.<CourseResponse>builder()
-                        .success(true)
-                        .payload(courseService.getEnrolledDetail(id))
-                        .build()
-        );
-    }
-
     @GetMapping("/detail/{id}")
     public ResponseEntity<ApiResponse<CourseResponse>> getFullDetail(@PathVariable String id) {
         return ResponseEntity.ok(
@@ -170,17 +127,8 @@ public class CourseController {
         );
     }
 
-    @GetMapping("/user/getUserByCourse/{id}")
-    public ResponseEntity<ApiResponse<List<String>>> getUsersByCourseId(@PathVariable String id) {
-        return ResponseEntity.ok(
-                ApiResponse.<List<String>>builder()
-                        .success(true)
-                        .payload(courseService.getUsersByCourseId(id))
-                        .build()
-        );
-    }
-
     @PatchMapping("/update-active-status/{id}")
+    @PreAuthorize("hasAnyRole('INSTRUCTOR', 'ADMIN')")
     public ResponseEntity<ApiResponse<Void>> updateStatus(@PathVariable String id) {
         courseService.updateStatus(id);
         return ResponseEntity.ok(

@@ -1,16 +1,35 @@
 server:
   port: 9005
+  forward-headers-strategy: framework
 
 spring:
   application:
     name: learning-service
   
-  # Database (MongoDB)
+  # Database Configuration (MongoDB)
   data:
     mongodb:
-      uri: ${MONGODB_URI:mongodb://localhost:27018/e_learning_learning}
+      uri: ${MONGODB_URI:mongodb://localhost:27018/learning_db}
+  
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVER:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+    consumer:
+      group-id: learning-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.hust.commonlibrary.event"
+        spring.json.type.mapping: orderPaidEvent:com.hust.commonlibrary.event.OrderPaidEvent,AssessmentSubmittedEvent:com.hust.commonlibrary.event.AssessmentSubmittedEvent
 
-  # Security (OAuth2 Keycloak)
+  # Security Configuration (OAuth2 Resource Server)
   security:
     oauth2:
       resourceserver:
@@ -33,3 +52,4 @@ logging:
     root: INFO
     com.hust.learningservice: DEBUG
     org.springframework.data.mongodb.core.MongoTemplate: DEBUG
+    org.springframework.security: INFO

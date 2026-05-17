@@ -7,6 +7,7 @@ import com.hust.commonlibrary.exception.ErrorCode;
 import feign.Response;
 import feign.codec.ErrorDecoder;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -14,6 +15,7 @@ import java.io.InputStream;
 
 @Component
 @Slf4j
+@ConditionalOnClass(name = "feign.codec.ErrorDecoder")
 public class FeignErrorDecoder implements ErrorDecoder {
 
     private final ErrorDecoder defaultErrorDecoder = new Default();

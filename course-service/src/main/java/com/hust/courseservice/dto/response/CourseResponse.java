@@ -1,7 +1,6 @@
 package com.hust.courseservice.dto.response;
 
 import com.hust.commonlibrary.dto.TimeResponse;
-import com.hust.courseservice.client.dto.UserInternalResponse;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -32,7 +31,6 @@ public class CourseResponse extends TimeResponse {
     private String status;
     private String instructorId;
     
-    private UserInternalResponse instructor;
     private CategoryResponse category;
     private List<SectionResponse> sections;
 
@@ -41,15 +39,8 @@ public class CourseResponse extends TimeResponse {
     private List<String> tags;
 
 
-    // 3. Số liệu thống kê (Tổng hợp từ các Service khác)
-    private Integer sectionCount;      // Số lượng chương
-    private Integer lessonCount;       // Tổng số bài học
-    private Integer studentCount;      // Số học viên (Lấy từ Order-Service)
-    private Double totalVideosLength;  // Tổng thời lượng video
-    private Integer numOfReviews;      // Số đánh giá (Lấy từ Interaction-Service)
-    private Double avgRatingStars;     // Điểm đánh giá (Lấy từ Interaction-Service)
-
-    // 4. Trạng thái riêng của User gọi API
-    private Boolean isBought;          // User đã mua chưa?
-    private Double progress;           // Tiến độ học (0.0 đến 1.0)
+   
+    private Integer sectionCount;      
+    private Integer lessonCount;      
+    private Double totalVideosLength;  
 }

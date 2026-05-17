@@ -21,14 +21,15 @@ import java.util.List;
 @Builder
 public class Order extends BaseEntity<String> {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
+    @PrePersist
+    public void ensureId() {
+        if (this.getId() == null) {
+            this.setId(java.util.UUID.randomUUID().toString());
+        }
+    }
 
     @Column(nullable = false)
     private String userId;
-    private String userEmail;
-    private String userName;
 
     @Column(precision = 19, scale = 2)
     private BigDecimal totalPrice;
@@ -37,7 +38,6 @@ public class Order extends BaseEntity<String> {
     private BigDecimal vatFee;
     
     private String note;
-    private String couponCode;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 50)

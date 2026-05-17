@@ -35,11 +35,6 @@ services:
       elearning-identity-db:
         condition: service_healthy
 
-  elearning-redis:
-    image: redis:7-alpine
-    container_name: elearning-redis
-    ports:
-      - "6379:6379"
 
 volumes:
   identity_pg_data:

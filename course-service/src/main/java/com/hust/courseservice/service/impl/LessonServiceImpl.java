@@ -3,18 +3,24 @@ package com.hust.courseservice.service.impl;
 import com.hust.commonlibrary.constant.AppConstants;
 import com.hust.commonlibrary.dto.ListResponse;
 import com.hust.commonlibrary.exception.payload.ResourceNotFoundException;
+import com.hust.commonlibrary.utils.SecurityUtils;
 import com.hust.courseservice.dto.request.LessonRequest;
 import com.hust.courseservice.dto.response.LessonResponse;
+import com.hust.courseservice.entity.Course;
 import com.hust.courseservice.entity.Lesson;
 import com.hust.courseservice.entity.enums.CourseAccess;
 import com.hust.courseservice.mapper.LessonMapper;
+import com.hust.courseservice.repository.CourseRepository;
 import com.hust.courseservice.repository.LessonRepository;
 import com.hust.courseservice.service.LessonService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.core.query.TextCriteria;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -23,10 +29,12 @@ import java.util.List;
 public class LessonServiceImpl implements LessonService {
 
     private final LessonRepository lessonRepository;
+    private final CourseRepository courseRepository;
     private final LessonMapper lessonMapper;
 
     @Override
     public LessonResponse create(LessonRequest request) {
+        validateCourseOwnership(request.getCourseId());
         Lesson lesson = lessonMapper.requestToEntity(request);
         lesson = lessonRepository.save(lesson);
         return lessonMapper.entityToResponse(lesson);
@@ -39,19 +47,26 @@ public class LessonServiceImpl implements LessonService {
                         AppConstants.Resource_Constants.LESSON,
                         AppConstants.Field_Constants.ID,
                         id));
+        
+        validateCourseOwnership(lesson.getCourseId());
+        
         lessonMapper.partialUpdate(lesson, request);
         lesson = lessonRepository.save(lesson);
         return lessonMapper.entityToResponse(lesson);
     }
 
     @Override
-    public void delete(String id) {
-        Lesson lesson = lessonRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        AppConstants.Resource_Constants.LESSON,
-                        AppConstants.Field_Constants.ID,
-                        id));
-        lessonRepository.delete(lesson);
+    @Transactional
+    public void delete(List<String> ids) {
+        if (ids == null || ids.isEmpty()) return;
+        List<Lesson> lessons = lessonRepository.findAllById(ids);
+        
+        lessons.stream()
+                .map(Lesson::getCourseId)
+                .distinct()
+                .forEach(this::validateCourseOwnership);
+        
+        lessonRepository.deleteAll(lessons);
     }
 
     @Override
@@ -105,5 +120,53 @@ public class LessonServiceImpl implements LessonService {
     @Override
     public List<String> getUsersByLessonId(String id) {
         return List.of(); // Placeholder
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void reorder(List<String> lessonIds) {
+        if (lessonIds == null || lessonIds.isEmpty()) return;
+
+        List<Lesson> lessons = lessonRepository.findAllById(lessonIds);
+        
+        lessons.stream()
+                .map(Lesson::getCourseId)
+                .distinct()
+                .forEach(this::validateCourseOwnership);
+
+        java.util.Map<String, Lesson> lessonMap = lessons.stream()
+                .collect(java.util.stream.Collectors.toMap(Lesson::getId, l -> l));
+
+        List<Lesson> toUpdate = new java.util.ArrayList<>();
+        for (int i = 0; i < lessonIds.size(); i++) {
+            Lesson lesson = lessonMap.get(lessonIds.get(i));
+            if (lesson != null) {
+                lesson.setPosition(i + 1);
+                toUpdate.add(lesson);
+            }
+        }
+
+        if (!toUpdate.isEmpty()) {
+            lessonRepository.saveAll(toUpdate);
+        }
+    }
+
+    private void validateCourseOwnership(String courseId) {
+        if (courseId == null) {
+            throw new IllegalArgumentException("Course ID cannot be null");
+        }
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        
+        if (isAdmin) return;
+
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Course", "id", courseId));
+        
+        String currentUserId = SecurityUtils.getCurrentUserIdOrThrow();
+        if (!course.getInstructorId().equals(currentUserId)) {
+            throw new AccessDeniedException("You do not have permission to perform this action on this course content!");
+        }
     }
 }

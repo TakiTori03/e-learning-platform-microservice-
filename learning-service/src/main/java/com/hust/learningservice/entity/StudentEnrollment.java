@@ -22,10 +22,11 @@ public class StudentEnrollment extends BaseDocument {
     @Indexed
     private String courseId;
 
-    private Instant enrollmentDate;
-    
-    private Double progress; // 0.0 to 100.0
+    private String orderId;
+    private Double progress;
     
     private Boolean isCompleted;
     private Instant completedAt;
+
+    private String lastAccessedLessonId;
 }

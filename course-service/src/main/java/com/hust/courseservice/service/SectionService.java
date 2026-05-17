@@ -10,8 +10,9 @@ import java.util.List;
 public interface SectionService {
     SectionResponse create(SectionRequest request);
     SectionResponse update(String id, SectionRequest request);
-    void delete(String id);
+    void delete(List<String> ids);
     SectionResponse detail(String id);
     ListResponse<SectionResponse> search(String text, Pageable pageable);
     List<SectionResponse> getByCourseId(String courseId);
+    void reorder(List<String> sectionIds);
 }

@@ -7,10 +7,9 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.Set;
+
 
 @Data
 @SuperBuilder
@@ -21,7 +20,8 @@ public class UserResponse extends TimeResponse {
     private UUID id;
 
     private String email;
-    private String fullName;
+    private String firstName;
+    private String lastName;
     private String phone;
     private String address;
     private String avatar;
@@ -35,7 +35,7 @@ public class UserResponse extends TimeResponse {
     private boolean showProfile;
     private boolean showCourses;
 
-    private Set<String> roles;
+    private String role;
     private UserStatus status;
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss", timezone = "UTC")

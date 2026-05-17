@@ -4,7 +4,7 @@ services:
     image: mongo:latest
     container_name: elearning-interaction-db
     environment:
-      MONGO_INITDB_DATABASE: e_learning_interaction
+      MONGO_INITDB_DATABASE: interaction_db
     ports:
       - "27019:27017" # Sử dụng 27019 để không trùng với Course (27017) và Learning (27018)
     volumes:

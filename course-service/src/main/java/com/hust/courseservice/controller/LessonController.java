@@ -42,9 +42,9 @@ public class LessonController {
         );
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable String id) {
-        lessonService.delete(id);
+    @PostMapping("/delete")
+    public ResponseEntity<ApiResponse<Void>> delete(@RequestBody List<String> ids) {
+        lessonService.delete(ids);
         return ResponseEntity.ok(
                 ApiResponse.<Void>builder()
                         .success(true)
@@ -87,7 +87,7 @@ public class LessonController {
 
     @GetMapping("/section/course-enrolled/{sectionId}")
     public ResponseEntity<ApiResponse<List<LessonResponse>>> getBySectionIdEnrolled(@PathVariable String sectionId) {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        String userId = com.hust.commonlibrary.utils.SecurityUtils.getCurrentUserIdOrThrow();
         return ResponseEntity.ok(
                 ApiResponse.<List<LessonResponse>>builder()
                         .success(true)
@@ -137,5 +137,14 @@ public class LessonController {
         );
     }
 
+    @PostMapping("/reorder")
+    public ResponseEntity<ApiResponse<Void>> reorder(@RequestBody List<String> lessonIds) {
+        lessonService.reorder(lessonIds);
+        return ResponseEntity.ok(
+                ApiResponse.<Void>builder()
+                        .success(true)
+                        .build()
+        );
+    }
 
 }

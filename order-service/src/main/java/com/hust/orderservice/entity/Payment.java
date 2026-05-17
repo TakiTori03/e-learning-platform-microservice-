@@ -21,9 +21,12 @@ import java.time.Instant;
 @Builder
 public class Payment extends BaseEntity<String> {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
+    @PrePersist
+    public void ensureId() {
+        if (this.getId() == null) {
+            this.setId(java.util.UUID.randomUUID().toString());
+        }
+    }
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", nullable = false)

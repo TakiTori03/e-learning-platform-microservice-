@@ -22,5 +22,5 @@ public class LessonProgressRequest {
     @NotNull
     private Boolean isDone;
 
-    private Double lastWatchedTime; // Progress in seconds
+    private Double lastWatchedTime;
 }

@@ -8,12 +8,13 @@ import com.hust.orderservice.service.VNPAYService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/payments")
+@RequestMapping("/payments")
 @RequiredArgsConstructor
 @Slf4j
 public class PaymentController {
@@ -23,45 +24,41 @@ public class PaymentController {
     private final OrderRepository orderRepository;
 
     @GetMapping("/vnpay/create/{orderId}")
-    public ApiResponse<String> createVNPAYPayment(@PathVariable String orderId, HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<String>> createVNPAYPayment(@PathVariable String orderId, HttpServletRequest request) {
+        log.info("Requesting VNPAY payment URL for order: {}", orderId);
+        
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
         
         long amount = order.getTotalPrice().longValue();
         String orderInfo = "Payment for order " + orderId;
         
-        // Handle IP behind proxy if necessary
         String ipAddress = request.getHeader("X-Forwarded-For");
         if (ipAddress == null || ipAddress.isEmpty()) {
             ipAddress = request.getRemoteAddr();
         }
 
         String paymentUrl = vnpayService.createPaymentUrl(orderId, amount, orderInfo, ipAddress);
-        return ApiResponse.<String>builder()
+        return ResponseEntity.ok(ApiResponse.<String>builder()
                 .success(true)
                 .payload(paymentUrl)
-                .build();
+                .build());
     }
 
-    /**
-     * Handle VNPay Client Redirect (Return URL)
-     */
     @GetMapping("/vnpay/vnpay_return")
-    public ApiResponse<String> vnpayReturn(@RequestParam Map<String, String> params) {
+    public ResponseEntity<ApiResponse<String>> vnpayReturn(@RequestParam Map<String, String> params) {
+        log.info("VNPAY Return Callback parameters: {}", params);
         String result = paymentService.processVNPAYReturn(params);
-        return ApiResponse.<String>builder()
+        return ResponseEntity.ok(ApiResponse.<String>builder()
                 .success("success".equals(result))
                 .payload(result)
-                .build();
+                .build());
     }
 
-    /**
-     * Handle VNPay Server-to-Server Callback (IPN)
-     * This is the official status update point.
-     */
     @GetMapping("/vnpay/vnpay_ipn")
-    public Map<String, String> vnpayIPN(@RequestParam Map<String, String> params) {
+    public ResponseEntity<Map<String, String>> vnpayIPN(@RequestParam Map<String, String> params) {
         log.info("VNPay IPN Received: {}", params);
-        return paymentService.processVNPAYIPN(params);
+        Map<String, String> response = paymentService.processVNPAYIPN(params);
+        return ResponseEntity.ok(response);
     }
 }

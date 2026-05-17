@@ -10,4 +10,7 @@ public interface CourseClient {
 
     @GetMapping("/internal/courses/{courseId}/lesson-count")
     ApiResponse<Long> getLessonCount(@PathVariable String courseId);
+
+    @GetMapping("/internal/lessons/{lessonId}")
+    ApiResponse<com.hust.commonlibrary.dto.LessonInternalResponse> getLessonDetail(@PathVariable String lessonId);
 }

@@ -1,5 +1,6 @@
 server:
   port: 9003
+  forward-headers-strategy: framework
 
 spring:
   application:
@@ -7,9 +8,8 @@ spring:
 
   data:
     mongodb:
-      uri: ${MONGODB_URI:mongodb://localhost:27019/e_learning_interaction}
+      uri: ${MONGODB_URI:mongodb://localhost:27019/interaction_db}
 
-  # Security (OAuth2 Keycloak) - Thêm để đồng bộ với toàn hệ thống
   security:
     oauth2:
       resourceserver:
@@ -31,4 +31,5 @@ logging:
   level:
     root: INFO
     com.hust.interactionservice: DEBUG
-    org.springframework.data.mongodb: DEBUG
+    org.springframework.data.mongodb.core.MongoTemplate: DEBUG
+    org.springframework.security: INFO

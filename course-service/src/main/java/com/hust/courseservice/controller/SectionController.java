@@ -41,9 +41,9 @@ public class SectionController {
         );
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable String id) {
-        sectionService.delete(id);
+    @PostMapping("/delete")
+    public ResponseEntity<ApiResponse<Void>> delete(@RequestBody List<String> ids) {
+        sectionService.delete(ids);
         return ResponseEntity.ok(
                 ApiResponse.<Void>builder()
                         .success(true)
@@ -83,5 +83,14 @@ public class SectionController {
         );
     }
 
+    @PostMapping("/reorder")
+    public ResponseEntity<ApiResponse<Void>> reorder(@RequestBody List<String> sectionIds) {
+        sectionService.reorder(sectionIds);
+        return ResponseEntity.ok(
+                ApiResponse.<Void>builder()
+                        .success(true)
+                        .build()
+        );
+    }
 
 }

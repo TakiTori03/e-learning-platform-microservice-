@@ -13,20 +13,27 @@ public interface CourseService {
     CourseResponse update(String id, CourseRequest request);
     void delete(List<String> ids);
     CourseResponse detail(String id);
-    ListResponse<CourseResponse> search(String text, Pageable pageable);
+    ListResponse<CourseResponse> search(
+            String q,
+            List<String> authors,
+            List<String> topics,
+            List<String> levels,
+            List<String> prices,
+            Pageable pageable
+    );
 
     // Specific Monolith Functionalities
     List<CourseResponse> getPopularCourses(int limit);
     List<CourseResponse> getRelatedCourses(String courseId, int limit);
-    List<CourseResponse> getSuggestedCourses(String userId, int limit);
-    List<CourseResponse> getCoursesOrderedByUser(String userId);
-    List<String> getWishlistIds(String userId);
-    List<CourseResponse> getWishlistCourses(String userId);
-    CourseResponse getEnrolledDetail(String id); // getCourseEnrolledByUserId
     CourseResponse getFullDetail(String id); // getCourseDetail
     void increaseView(String id);
-    List<String> getUsersByCourseId(String id);
     void updateStatus(String id); // updateActiveStatusCourse
     List<CourseResponse> getAllActiveCourses();
     ListResponse<Object> getHistories(String id, int page, int limit);
+
+    // Dedicated Admin Methods (Full privileges)
+    CourseResponse adminCreate(CourseRequest request, String instructorId);
+    CourseResponse adminUpdate(String id, CourseRequest request, String instructorId);
+    void adminDelete(List<String> ids);
+    void adminUpdateStatus(String id);
 }
