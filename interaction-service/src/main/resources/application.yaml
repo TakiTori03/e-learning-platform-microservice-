@@ -3,6 +3,8 @@ server:
   forward-headers-strategy: framework
 
 spring:
+  config:
+    import: optional:classpath:common-observability.yml
   application:
     name: interaction-service
 
@@ -33,3 +35,4 @@ logging:
     com.hust.interactionservice: DEBUG
     org.springframework.data.mongodb.core.MongoTemplate: DEBUG
     org.springframework.security: INFO
+

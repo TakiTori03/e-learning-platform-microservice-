@@ -3,6 +3,7 @@ package com.hust.orderservice.service.impl;
 import com.hust.orderservice.constant.OrderStatus;
 import com.hust.orderservice.constant.PaymentStatus;
 import com.hust.orderservice.entity.Order;
+import com.hust.orderservice.entity.OrderItem;
 import com.hust.orderservice.entity.Payment;
 import com.hust.orderservice.repository.OrderRepository;
 import com.hust.orderservice.repository.PaymentRepository;
@@ -133,7 +134,7 @@ public class PaymentServiceImpl implements PaymentService {
         log.info("Publishing OrderPaidInternalEvent for Order ID: {}", order.getId());
         try {
             List<String> courseIds = order.getItems().stream()
-                    .map(com.hust.orderservice.entity.OrderItem::getCourseId)
+                    .map(OrderItem::getCourseId)
                     .toList();
 
             OrderPaidEvent event = OrderPaidEvent.builder()

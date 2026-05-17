@@ -3,6 +3,8 @@ server:
   forward-headers-strategy: framework
 
 spring:
+  config:
+    import: optional:classpath:common-observability.yml
   application:
     name: order-service
   
@@ -73,3 +75,4 @@ payment:
     hash-secret: ${VNPAY_HASH_SECRET:A0M6XA158VQMXQJ7TMB96L6MB6DHO1JA}
     url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
     return-url: ${VNPAY_RETURN_URL:http://localhost:3000/order/vnpay-return}
+

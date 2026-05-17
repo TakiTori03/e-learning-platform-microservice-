@@ -1,0 +1,70 @@
+package com.hust.identityservice.service.impl;
+
+import com.hust.identityservice.repository.UserRepository;
+import com.hust.identityservice.repository.projection.SignupProjection;
+import com.hust.identityservice.service.ReportService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import com.hust.identityservice.dto.response.SignupDataPoint;
+import com.hust.identityservice.dto.response.SignupReportResponse;
+import com.hust.identityservice.dto.response.UserResponse;
+import com.hust.identityservice.entity.UserStatus;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class ReportServiceImpl implements ReportService {
+
+    private final UserRepository userRepository;
+
+    @Override
+    public SignupReportResponse getNewSignupsReport(String startDate, String endDate, String groupBy) {
+        log.info("Generating new signups report from {} to {} grouped by {}", startDate, endDate, groupBy);
+        
+        List<SignupProjection> rawData = userRepository.getNewSignupsByMonth();
+        
+        List<SignupDataPoint> dataPoints = rawData.stream().map(row -> 
+            SignupDataPoint.builder()
+                .period(row.getPeriod())
+                .count(row.getCount() != null ? row.getCount() : 0L)
+                .build()
+        ).toList();
+
+        Long totalSignups = dataPoints.stream()
+                .mapToLong(SignupDataPoint::getCount)
+                .sum();
+
+        return SignupReportResponse.builder()
+                .totalSignups(totalSignups)
+                .dataPoints(dataPoints)
+                .build();
+    }
+
+    @Override
+    public List<UserResponse> getTopUsers(int limit) {
+        log.info("Fetching top {} users", limit);
+        Pageable pageable = PageRequest.of(0, limit);
+        
+        return userRepository.getTopUsersByLastLogin(UserStatus.ACTIVE, pageable)
+                .getContent()
+                .stream()
+                .map(user -> UserResponse.builder()
+                        .id(user.getId())
+                        .email(user.getEmail())
+                        .firstName(user.getFirstName())
+                        .lastName(user.getLastName())
+                        .avatar(user.getAvatar())
+                        .status(user.getStatus())
+                        .lastLogin(user.getLastLogin())
+                        .createdAt(user.getCreatedAt())
+                        .build())
+                .collect(Collectors.toList());
+    }
+}

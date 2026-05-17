@@ -1,0 +1,25 @@
+
+services:
+  elearning-assessment-db:
+    image: postgres:15-alpine
+    container_name: elearning-assessment-db
+    environment:
+      POSTGRES_DB: assessment_db
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5434:5432"
+    volumes:
+      - assessment_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d assessment_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  assessment_postgres_data:
+
+networks:
+  default:
+    name: elearning-network
+    external: true

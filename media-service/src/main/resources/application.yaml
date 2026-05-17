@@ -3,6 +3,8 @@ server:
   forward-headers-strategy: framework
 
 spring:
+  config:
+    import: optional:classpath:common-observability.yml
   application:
     name: media-service
 
@@ -51,3 +53,4 @@ logging:
     root: INFO
     com.hust.mediaservice: DEBUG
     org.springframework.security: INFO
+

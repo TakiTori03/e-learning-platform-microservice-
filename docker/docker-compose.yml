@@ -10,6 +10,7 @@ include:
   - interaction/docker-compose.yml
   - media/docker-compose.yml
   - assessment/docker-compose.yml
+  - observability/docker-compose.yml
 
 networks:
   default:

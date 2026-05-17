@@ -3,6 +3,8 @@ server:
   forward-headers-strategy: framework
 
 spring:
+  config:
+    import: optional:classpath:common-observability.yml
   application:
     name: identity-service
 

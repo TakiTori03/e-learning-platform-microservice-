@@ -160,28 +160,24 @@ public class MediaService {
         mediaRepository.save(media);
         
         File tempFile = null;
+        String hlsFolderName = UUID.randomUUID().toString();
+        Path localHlsPath = Paths.get(baseStoragePath, "hls", hlsFolderName);
         
         try {
             tempFile = File.createTempFile("transcode-raw-", "_" + media.getFileName());
             storageStrategy.downloadFileToLocal(media.getRawFileKey(), tempFile);
-            
-            String hlsFolderName = UUID.randomUUID().toString();
             
             // 3. Trigger FFMPEG HLS transcoding and thumbnail generation locally
             videoProcessingService.processToHls(tempFile, hlsFolderName);
             videoProcessingService.extractThumbnail(tempFile, hlsFolderName);
             
             // 4. Sync local FFMPEG HLS chunks folder to unified S3/MinIO Storage
-            Path localHlsPath = Paths.get(baseStoragePath, "hls", hlsFolderName);
             String remoteHlsPath = "hls/" + hlsFolderName;
             storageStrategy.uploadDirectory(localHlsPath.toString(), remoteHlsPath);
             
             // 5. Generate final Cloud-native URLs
             String url = String.format("%s/%s/%s/playlist.m3u8", minioEndpoint, bucketName, remoteHlsPath);
             String thumbnailUrl = String.format("%s/%s/%s/thumbnail.jpg", minioEndpoint, bucketName, remoteHlsPath);
-
-            
-            org.springframework.util.FileSystemUtils.deleteRecursively(localHlsPath);
 
             media.setUrl(url);
             media.setThumbnailUrl(thumbnailUrl);
@@ -202,8 +198,17 @@ public class MediaService {
             media.setStatus(Media.MediaStatus.FAILED);
             mediaRepository.save(media);
         } finally {
+            // Đảm bảo 100% dọn dẹp file tạm và thư mục tạm dù thành công hay thất bại!
             if (tempFile != null && tempFile.exists()) {
                 tempFile.delete();
+            }
+            try {
+                if (java.nio.file.Files.exists(localHlsPath)) {
+                    org.springframework.util.FileSystemUtils.deleteRecursively(localHlsPath);
+                    log.info("🧹 Cleaned up local transcoding directory: {}", localHlsPath);
+                }
+            } catch (Exception ex) {
+                log.error("Failed to clean up local transcoding directory: {}", localHlsPath, ex);
             }
         }
     }
