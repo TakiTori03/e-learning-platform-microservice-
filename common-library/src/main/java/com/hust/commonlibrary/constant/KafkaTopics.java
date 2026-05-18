@@ -37,4 +37,25 @@ public final class KafkaTopics {
      * Consumer: learning-service
      */
     public static final String ASSESSMENT_SUBMITTED = "assessment-submitted-topic";
+
+    /**
+     * Triggered when raw text has been successfully extracted from media/documents.
+     * Producer: worker-service
+     * Consumer: ai-service
+     */
+    public static final String RAW_TEXT_INGESTED = "raw-text-ingested-topic";
+
+    /**
+     * Triggered to request processing (transcoding/OCR) of a media asset.
+     * Producer: media-service
+     * Consumer: worker-service
+     */
+    public static final String MEDIA_PROCESSING = "media-processing-topic";
+
+    /**
+     * Triggered when a media asset is successfully processed and ready for streaming/reading.
+     * Producer: worker-service
+     * Consumer: media-service
+     */
+    public static final String LESSON_MEDIA_READY = "lesson-media-ready-topic";
 }

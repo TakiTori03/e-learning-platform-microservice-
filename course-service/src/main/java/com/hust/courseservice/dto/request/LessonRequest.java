@@ -19,5 +19,4 @@ public class LessonRequest {
     private Integer position;
     private String sectionId;
     private String courseId;
-    private String mediaId;
 }

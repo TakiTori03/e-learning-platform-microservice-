@@ -22,4 +22,5 @@ public class MediaResponse extends TimeResponse {
     private String thumbnailUrl;
     private String provider;
     private String status;
+    private Double duration;
 }

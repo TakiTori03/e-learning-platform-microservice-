@@ -34,17 +34,18 @@ public class LessonServiceImpl implements LessonService {
     private final org.springframework.kafka.core.KafkaTemplate<String, Object> kafkaTemplate;
 
     @Override
+    @Transactional
     public LessonResponse create(LessonRequest request) {
         validateCourseOwnership(request.getCourseId());
+        
         Lesson lesson = lessonMapper.requestToEntity(request);
         lesson = lessonRepository.save(lesson);
-        
-        publishMaterialUpdate(lesson);
         
         return lessonMapper.entityToResponse(lesson);
     }
 
     @Override
+    @Transactional
     public LessonResponse update(String id, LessonRequest request) {
         Lesson lesson = lessonRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -57,26 +58,7 @@ public class LessonServiceImpl implements LessonService {
         lessonMapper.partialUpdate(lesson, request);
         lesson = lessonRepository.save(lesson);
         
-        publishMaterialUpdate(lesson);
-        
         return lessonMapper.entityToResponse(lesson);
-    }
-
-    private void publishMaterialUpdate(Lesson lesson) {
-        if (lesson.getContent() != null && !lesson.getContent().trim().isEmpty()) {
-            try {
-                com.hust.commonlibrary.event.LessonMaterialUpdatedEvent event = com.hust.commonlibrary.event.LessonMaterialUpdatedEvent.builder()
-                        .lessonId(lesson.getId())
-                        .courseId(lesson.getCourseId())
-                        .content(lesson.getContent())
-                        .build();
-
-                kafkaTemplate.send(com.hust.commonlibrary.constant.KafkaTopics.LESSON_MATERIAL_UPDATED, lesson.getId(), event);
-            } catch (Exception e) {
-                org.slf4j.LoggerFactory.getLogger(LessonServiceImpl.class)
-                        .error("Failed to publish LessonMaterialUpdatedEvent for Lesson ID: {}. Error: {}", lesson.getId(), e.getMessage());
-            }
-        }
     }
 
     @Override

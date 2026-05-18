@@ -25,8 +25,10 @@
         <module>interaction-service</module>
         <module>order-service</module>
         <module>learning-service</module>
-        <module>notification-service</module>
+<!--        <module>notification-service</module>-->
         <module>assessment-service</module>
+        <module>worker-service</module>
+<!--        <module>ai-service</module>-->
     </modules>
 
     <properties>

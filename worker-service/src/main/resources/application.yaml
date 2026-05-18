@@ -1,41 +1,25 @@
 server:
-  port: 9002
+  port: 9088
   forward-headers-strategy: framework
 
 spring:
-  config:
-    import: optional:classpath:common-observability.yml
   application:
-    name: media-service
+    name: worker-service
 
-  data:
-    mongodb:
-      uri: ${MONGODB_URI:mongodb://localhost:27020/media_db}
-
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8443/realms/elearning-realm}
-          jwk-set-uri: ${KEYCLOAK_JWKS_URI:http://localhost:8443/realms/elearning-realm/protocol/openid-connect/certs}
-
-  servlet:
-    multipart:
-      max-file-size: 500MB
-      max-request-size: 500MB
-
+  # Kafka Configuration
   kafka:
     bootstrap-servers: ${KAFKA_SERVER:localhost:9092}
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     consumer:
-      group-id: media-group
+      group-id: worker-group
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "com.hust.commonlibrary.event"
+        max.poll.interval.ms: 900000
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
 eureka:
   instance:
@@ -50,20 +34,28 @@ eureka:
 app:
   storage:
     local-path: ${STORAGE_LOCAL_PATH:./uploads}
-
   ffmpeg:
     path: ${FFMPEG_PATH:ffmpeg}
-
+  ffprobe:
+    path: ${FFPROBE_PATH:ffprobe}
   minio:
     endpoint: ${MINIO_ENDPOINT:http://localhost:9100}
     access-key: ${MINIO_ACCESS_KEY:minioadmin}
     secret-key: ${MINIO_SECRET_KEY:minioadmin}
     bucket-name: ${MINIO_BUCKET:elearning-media}
     region: ${MINIO_REGION:us-east-1}
+  # gemini:
+  #   api-key: ${GEMINI_API_KEY:}
+  #   chunk-duration-seconds: ${GEMINI_CHUNK_DURATION_SECONDS:300}
+  #   max-attempts: ${GEMINI_MAX_ATTEMPTS:5}
+  whisper:
+    enabled: ${WHISPER_ENABLED:true}
+    path: ${WHISPER_PATH:bin/whisper-cli.exe}
+    model-path: ${WHISPER_MODEL_PATH:models/whisper/ggml-base.bin}
+    language: ${WHISPER_LANGUAGE:auto}
 
 logging:
   level:
     root: INFO
-    com.hust.mediaservice: DEBUG
+    com.hust.workerservice: DEBUG
     org.springframework.security: INFO
-

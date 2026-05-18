@@ -9,4 +9,5 @@ import java.util.Optional;
 @Repository
 public interface MediaRepository extends MongoRepository<Media, String> {
     Optional<Media> findByHlsFolderName(String hlsFolderName);
+    Optional<Media> findByReferenceId(String referenceId);
 }

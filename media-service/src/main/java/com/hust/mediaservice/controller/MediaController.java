@@ -45,40 +45,51 @@ public class MediaController {
         );
     }
 
+    /**
+     * Tra cứu thông tin media được liên kết với một bài học cụ thể (lessonId).
+     * Phục vụ đắc lực luồng truy vấn đa hình khi học viên học bài.
+     */
+    @GetMapping("/lessons/{lessonId}")
+    public ResponseEntity<ApiResponse<MediaResponse>> getMediaByLessonId(@PathVariable String lessonId) {
+        return ResponseEntity.ok(
+                ApiResponse.<MediaResponse>builder()
+                        .success(true)
+                        .payload(mediaMapper.entityToResponse(mediaService.getByReferenceId(lessonId)))
+                        .build()
+        );
+    }
+
     // ======================== UPLOAD ========================
 
     @PostMapping("/upload/image")
     public ResponseEntity<ApiResponse<MediaResponse>> uploadImage(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "referenceId", required = false) String referenceId) throws IOException {
+            @RequestParam("file") MultipartFile file) throws IOException {
         return ResponseEntity.ok(
                 ApiResponse.<MediaResponse>builder()
                         .success(true)
-                        .payload(mediaMapper.entityToResponse(mediaService.upload(file, MediaType.IMAGE, referenceId)))
+                        .payload(mediaMapper.entityToResponse(mediaService.upload(file, MediaType.IMAGE)))
                         .build()
         );
     }
 
     @PostMapping("/upload/pdf")
     public ResponseEntity<ApiResponse<MediaResponse>> uploadPdf(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "referenceId", required = false) String referenceId) throws IOException {
+            @RequestParam("file") MultipartFile file) throws IOException {
         return ResponseEntity.ok(
                 ApiResponse.<MediaResponse>builder()
                         .success(true)
-                        .payload(mediaMapper.entityToResponse(mediaService.upload(file, MediaType.PDF, referenceId)))
+                        .payload(mediaMapper.entityToResponse(mediaService.upload(file, MediaType.PDF)))
                         .build()
         );
     }
 
     @PostMapping("/upload/document")
     public ResponseEntity<ApiResponse<MediaResponse>> uploadDocument(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "referenceId", required = false) String referenceId) throws IOException {
+            @RequestParam("file") MultipartFile file) throws IOException {
         return ResponseEntity.ok(
                 ApiResponse.<MediaResponse>builder()
                         .success(true)
-                        .payload(mediaMapper.entityToResponse(mediaService.upload(file, MediaType.DOCUMENT, referenceId)))
+                        .payload(mediaMapper.entityToResponse(mediaService.upload(file, MediaType.DOCUMENT)))
                         .build()
         );
     }
@@ -91,34 +102,38 @@ public class MediaController {
     @PreAuthorize("hasAnyRole('INSTRUCTOR', 'ADMIN')")
     public ResponseEntity<ApiResponse<PresignedUrlResponse>> requestUploadUrl(
             @RequestParam("fileName") String fileName,
-            @RequestParam("contentType") String contentType,
-            @RequestParam("fileSize") Long fileSize,
-            @RequestParam("referenceId") String lessonId) {
+            @RequestParam("contentType") String contentType) {
         
         return ResponseEntity.ok(
                 ApiResponse.<PresignedUrlResponse>builder()
                         .success(true)
-                        .payload(mediaService.generatePresignedUrlForVideo(fileName, contentType, fileSize, lessonId))
+                        .payload(mediaService.generatePresignedUrlForVideo(fileName, contentType))
                         .build()
         );
     }
 
     /**
-     * Trigger the background asynchronous transcoding processing engine for an uploaded video asset.
-     * Front-end invokes this as soon as direct PUT to S3/Minio returns 200 OK.
+     * Public API used by Frontend to link a media asset to a lesson 
+     * after the lesson is created (Late Binding).
      */
-    @PostMapping("/process-video/{mediaId}")
+    @PutMapping("/{mediaId}/link")
     @PreAuthorize("hasAnyRole('INSTRUCTOR', 'ADMIN')")
-    public ResponseEntity<ApiResponse<String>> triggerAsyncProcessing(@PathVariable String mediaId) {
-        mediaService.processUploadedVideoAsync(mediaId);
+    public ResponseEntity<ApiResponse<String>> linkMediaToLesson(
+            @PathVariable String mediaId, 
+            @RequestParam String lessonId,
+            @RequestParam String courseId) {
         
-        return ResponseEntity.accepted().body(
+        mediaService.linkToLessonAndTriggerProcessing(mediaId, lessonId, courseId);
+        return ResponseEntity.ok(
                 ApiResponse.<String>builder()
                         .success(true)
-                        .payload("Nén HLS và mã hóa video đã được kích hoạt xử lý ngầm thành công.")
+                        .payload("Media đã được liên kết với bài học thành công.")
                         .build()
         );
     }
+
+    // triggerAsyncProcessing has been removed. Processing is now automatically 
+    // triggered by course-service when a lesson is created via Kafka.
 
     // ======================== DELETE ========================
 

@@ -35,5 +35,4 @@ public class Lesson extends BaseDocument {
     private CourseAccess access;
     private LessonType type; 
     private Integer position;
-    private String mediaId;
 }

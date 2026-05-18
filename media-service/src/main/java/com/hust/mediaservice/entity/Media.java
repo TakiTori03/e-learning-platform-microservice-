@@ -26,6 +26,8 @@ public class Media extends BaseDocument {
     private String referenceId;
     private String hlsFolderName;
     private String rawFileKey;
+    private String transcriptUrl;
+    private Double duration;
 
     @Builder.Default
     private MediaStatus status = MediaStatus.READY;
