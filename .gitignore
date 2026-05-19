@@ -48,32 +48,26 @@ logs/
 **/models/
 
 ### Node.js BFF (aggregator-service) ###
-node_modules/
-**/node_modules/
+/aggregator-service/node_modules/
 /aggregator-service/dist/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+/aggregator-service/npm-debug.log*
+/aggregator-service/yarn-debug.log*
+/aggregator-service/yarn-error.log*
+/aggregator-service/.env
+/aggregator-service/.env.*
 
 ### Python AI Parser (pdf-parser-service) ###
-__pycache__/
-**/__pycache__/
-*.py[cod]
-*$py.class
-venv/
-.venv/
-env/
-**/.venv/
-**/venv/
-.pytest_cache/
-
-### Environment Configs & Secrets ###
-.env
-.env.local
-.env.*.local
-*.env
+/pdf-parser-service/__pycache__/
+/pdf-parser-service/*.py[cod]
+/pdf-parser-service/venv/
+/pdf-parser-service/.venv/
+/pdf-parser-service/env/
+/pdf-parser-service/.pytest_cache/
+/pdf-parser-service/.env
+/pdf-parser-service/.env.*
 
 ### OS & System Files ###
 .DS_Store
 Thumbs.db
+
 
