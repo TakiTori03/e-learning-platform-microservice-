@@ -11,7 +11,7 @@ spring:
   # Database Configuration (MongoDB)
   data:
     mongodb:
-      uri: ${MONGODB_URI:mongodb://localhost:27018/learning_db}
+      uri: ${MONGODB_URI:mongodb://localhost:27018/learning_db?maxPoolSize=50&minPoolSize=10&maxIdleTimeMS=300000&waitQueueTimeoutMS=10000}
   
   # Kafka Configuration
   kafka:

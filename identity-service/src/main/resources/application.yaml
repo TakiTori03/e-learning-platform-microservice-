@@ -13,6 +13,14 @@ spring:
     username: ${DB_USER:postgres}
     password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:25}
+      minimum-idle: ${HIKARI_MIN_IDLE:5}
+      idle-timeout: 300000              # 5 minutes
+      connection-timeout: 20000         # 20 seconds
+      max-lifetime: 1200000             # 20 minutes
+      leak-detection-threshold: 2000    # 2 seconds
+      pool-name: HikariPool-IdentityService
 
   jpa:
     hibernate:

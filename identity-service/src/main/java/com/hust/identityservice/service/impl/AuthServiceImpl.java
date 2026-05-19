@@ -66,22 +66,28 @@ public class AuthServiceImpl implements AuthService {
         log.info("Registering new student applicant: {}", request.getEmail());
         String keycloakUserId = createKeycloakUser(request);
 
-        // 1. Gán Role Student trên Keycloak
-        authRepository.assignRole(keycloakUserId, AppConstants.Role_Constants.ROLE_STUDENT);
+        try {
+            // 1. Gán Role Student trên Keycloak
+            authRepository.assignRole(keycloakUserId, AppConstants.Role_Constants.ROLE_STUDENT);
 
-        // 2. Ghi nhận Database local
-        User user = userMapper.toUser(request);
-        user.setId(UUID.fromString(keycloakUserId));
-        user.setAvatar(AppConstants.DEFAULT_AVATAR);
-        user.setStatus(UserStatus.ACTIVE);
-        
-        // 🔥 ĐỒNG BỘ GHI KÉP (Dual-Write Sync)
-        user.setRole(AppConstants.Role_Constants.ROLE_STUDENT);
-        
-        user = userRepository.save(user);
-        log.info("BFF: Student registered and synced to DB with standard roles: {}", user.getEmail());
+            // 2. Ghi nhận Database local
+            User user = userMapper.toUser(request);
+            user.setId(UUID.fromString(keycloakUserId));
+            user.setAvatar(AppConstants.DEFAULT_AVATAR);
+            user.setStatus(UserStatus.ACTIVE);
+            
+            // 🔥 ĐỒNG BỘ GHI KÉP (Dual-Write Sync)
+            user.setRole(AppConstants.Role_Constants.ROLE_STUDENT);
+            
+            user = userRepository.save(user);
+            log.info("BFF: Student registered and synced to DB with standard roles: {}", user.getEmail());
 
-        return userMapper.toUserResponse(user);
+            return userMapper.toUserResponse(user);
+        } catch (Exception e) {
+            log.error("💥 Dual-Write Error: Local database registration failed for student email: {}. Deleting user from Keycloak for consistency.", request.getEmail(), e);
+            authRepository.deleteUser(keycloakUserId);
+            throw e;
+        }
     }
 
     @Override
@@ -90,16 +96,22 @@ public class AuthServiceImpl implements AuthService {
         log.info("Registering new Instructor applicant: {}", request.getEmail());
         String keycloakUserId = createKeycloakUser(request);
 
-        // QUAN TRỌNG: KHÔNG gán Role Instructor tại đây (Đợi Admin duyệt)
-        User user = userMapper.toUser(request);
-        user.setId(UUID.fromString(keycloakUserId));
-        user.setAvatar(AppConstants.DEFAULT_AVATAR);
-        user.setStatus(UserStatus.PENDING); // Đăng ký mới chờ duyệt
+        try {
+            // QUAN TRỌNG: KHÔNG gán Role Instructor tại đây (Đợi Admin duyệt)
+            User user = userMapper.toUser(request);
+            user.setId(UUID.fromString(keycloakUserId));
+            user.setAvatar(AppConstants.DEFAULT_AVATAR);
+            user.setStatus(UserStatus.PENDING); // Đăng ký mới chờ duyệt
 
-        user = userRepository.save(user);
-        log.info("BFF: Instructor candidate registered and pending verification: {}", user.getEmail());
+            user = userRepository.save(user);
+            log.info("BFF: Instructor candidate registered and pending verification: {}", user.getEmail());
 
-        return userMapper.toUserResponse(user);
+            return userMapper.toUserResponse(user);
+        } catch (Exception e) {
+            log.error("💥 Dual-Write Error: Local database registration failed for instructor email: {}. Deleting user from Keycloak for consistency.", request.getEmail(), e);
+            authRepository.deleteUser(keycloakUserId);
+            throw e;
+        }
     }
 
     @Override

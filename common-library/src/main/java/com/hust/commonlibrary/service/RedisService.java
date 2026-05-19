@@ -19,4 +19,7 @@ public interface RedisService {
     
     // Counter (Huu dung cho rate limit, luot xem)
     Long increment(String key, long delta);
+
+    // Atomic Rate Limiting (Lua script execution)
+    Long incrementAndExpire(String key, long expireSeconds);
 }

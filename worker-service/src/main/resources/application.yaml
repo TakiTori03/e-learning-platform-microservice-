@@ -53,6 +53,8 @@ app:
     path: ${WHISPER_PATH:bin/whisper-cli.exe}
     model-path: ${WHISPER_MODEL_PATH:models/whisper/ggml-base.bin}
     language: ${WHISPER_LANGUAGE:auto}
+  parser:
+    service-url: ${PARSER_SERVICE_URL:http://127.0.0.1:8090/api/v1/parser/extract}
 
 logging:
   level:

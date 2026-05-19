@@ -1,5 +1,6 @@
 package com.hust.mediaservice.service;
 
+import com.hust.commonlibrary.dto.ApiResponse;
 import com.hust.commonlibrary.event.MediaProcessingRequestEvent;
 import com.hust.commonlibrary.exception.payload.ResourceNotFoundException;
 import com.hust.commonlibrary.utils.SecurityUtils;
@@ -9,6 +10,8 @@ import com.hust.mediaservice.repository.MediaRepository;
 import com.hust.mediaservice.strategy.StorageStrategy;
 import com.hust.mediaservice.entity.enums.MediaType;
 import com.hust.mediaservice.entity.enums.StorageProvider;
+import com.hust.commonlibrary.annotation.CustomCache;
+import com.hust.mediaservice.client.LearningClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,6 +30,7 @@ public class MediaService {
     private final MediaRepository mediaRepository;
     private final StorageStrategy storageStrategy;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+    private final LearningClient learningClient;
 
     @Value("${app.storage.local-path:./uploads}")
     private String baseStoragePath;
@@ -183,5 +187,12 @@ public class MediaService {
 
     private String getUserId() {
         return SecurityUtils.getCurrentUserIdOrThrow();
+    }
+
+    @CustomCache(key = "'media:access:' + #userId + ':' + #lessonId", ttl = 5)
+    public boolean checkLessonAccess(String userId, String lessonId) {
+        log.debug("🔑 [CustomCache MISS] Checking access for userId {} and lessonId {} via learning-service Feign", userId, lessonId);
+        ApiResponse<Boolean> accessResponse = learningClient.checkLessonAccess(userId, lessonId);
+        return accessResponse.isSuccess() && Boolean.TRUE.equals(accessResponse.getPayload());
     }
 }

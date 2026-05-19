@@ -3,7 +3,6 @@ package com.hust.mediaservice.controller;
 import com.hust.commonlibrary.dto.ApiResponse;
 import com.hust.commonlibrary.exception.payload.ResourceNotFoundException;
 import com.hust.commonlibrary.utils.SecurityUtils;
-import com.hust.mediaservice.client.LearningClient;
 import com.hust.mediaservice.dto.response.MediaResponse;
 import com.hust.mediaservice.dto.response.PresignedUrlResponse;
 
@@ -12,6 +11,7 @@ import com.hust.mediaservice.entity.enums.MediaType;
 import com.hust.mediaservice.mapper.MediaMapper;
 import com.hust.mediaservice.service.MediaService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,11 +22,11 @@ import java.io.IOException;
 
 @RestController
 @RequiredArgsConstructor
+@Slf4j
 public class MediaController {
 
     private final MediaService mediaService;
     private final MediaMapper mediaMapper;
-    private final LearningClient learningClient;
 
     // ======================== QUERY ========================
 
@@ -166,9 +166,9 @@ public class MediaController {
         }
 
         String userId = SecurityUtils.getCurrentUserIdOrThrow();
-        ApiResponse<Boolean> accessResponse = learningClient.checkLessonAccess(userId, lessonId);
+        boolean isAllowed = mediaService.checkLessonAccess(userId, lessonId);
         
-        if (!accessResponse.isSuccess() || !accessResponse.getPayload()) {
+        if (!isAllowed) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 

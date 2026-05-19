@@ -39,12 +39,14 @@ public class RateLimitAspect {
         String targetKey = resolveRateLimitKey(joinPoint, rateLimit);
         String finalKey = "elearning:ratelimit:" + targetKey;
 
-        // Thực hiện tăng nguyên tử trong Redis
-        Long currentCount = redisService.increment(finalKey, 1);
-
-        // Nếu là lượt gọi đầu tiên trong chu kỳ, thiết lập thời gian hết hạn
-        if (currentCount != null && currentCount == 1) {
-            redisService.expire(finalKey, rateLimit.period(), TimeUnit.SECONDS);
+        // Thực hiện tăng nguyên tử và tự động thiết lập TTL bằng Lua Script để chống rò rỉ khóa vĩnh viễn
+        Long currentCount;
+        try {
+            currentCount = redisService.incrementAndExpire(finalKey, rateLimit.period());
+        } catch (Exception e) {
+            log.error("⚠️ Redis Connection Error in RateLimitAspect on key: {}. Bypassing rate limit check.", finalKey, e);
+            // Redis sập -> Cho phép request đi qua để đảm bảo tính sẵn sàng (High Availability)
+            return;
         }
 
         // Kiểm tra vượt ngưỡng

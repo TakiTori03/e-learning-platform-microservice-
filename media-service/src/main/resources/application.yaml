@@ -10,7 +10,7 @@ spring:
 
   data:
     mongodb:
-      uri: ${MONGODB_URI:mongodb://localhost:27020/media_db}
+      uri: ${MONGODB_URI:mongodb://localhost:27020/media_db?maxPoolSize=50&minPoolSize=10&maxIdleTimeMS=300000&waitQueueTimeoutMS=10000}
 
   security:
     oauth2:

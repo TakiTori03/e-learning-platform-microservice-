@@ -1,6 +1,7 @@
 package com.hust.learningservice.client;
 
 import com.hust.commonlibrary.dto.ApiResponse;
+import com.hust.commonlibrary.dto.LessonInternalResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,5 +13,5 @@ public interface CourseClient {
     ApiResponse<Long> getLessonCount(@PathVariable String courseId);
 
     @GetMapping("/internal/lessons/{lessonId}")
-    ApiResponse<com.hust.commonlibrary.dto.LessonInternalResponse> getLessonDetail(@PathVariable String lessonId);
+    ApiResponse<LessonInternalResponse> getLessonDetail(@PathVariable String lessonId);
 }

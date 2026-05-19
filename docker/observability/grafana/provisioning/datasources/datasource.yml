@@ -13,3 +13,16 @@ datasources:
     access: proxy
     url: http://elearning-loki:3100
     editable: true
+    jsonData:
+      derivedFields:
+        - datasourceUid: tempo
+          matcherRegex: "\\b([a-f0-9]{32})\\b"
+          name: TraceID
+          url: "$${__value.raw}"
+
+  - name: Tempo
+    type: tempo
+    uid: tempo
+    access: proxy
+    url: http://elearning-tempo:3200
+    editable: true

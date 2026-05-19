@@ -1,6 +1,8 @@
 logging:
   file:
     name: logs/${spring.application.name}.log
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
 
 spring:
   cloud:
@@ -35,3 +37,9 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: 1.0 # Thu thập 100% trace logs ở môi trường dev/staging
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}

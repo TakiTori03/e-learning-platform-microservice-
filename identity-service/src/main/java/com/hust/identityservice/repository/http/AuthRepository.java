@@ -161,6 +161,21 @@ public class AuthRepository {
     }
 
     /**
+     * Xóa User khỏi Keycloak Realm (Sử dụng cho giao dịch bù khi ghi kép cục bộ thất bại)
+     */
+    public void deleteUser(String userId) {
+        try {
+            keycloakAdminClient.realm(keycloakConfig.getRealm())
+                    .users()
+                    .get(userId)
+                    .remove();
+            log.warn("🧹 Rolled back / deleted Keycloak user {} due to local DB sync failure.", userId);
+        } catch (Exception e) {
+            log.error("💥 Critical: Failed to delete user {} from Keycloak during rollback: {}", userId, e.getMessage());
+        }
+    }
+
+    /**
      * Lấy danh sách các Role hiện có trong Realm
      */
     public List<RoleRepresentation> getAvailableRoles() {

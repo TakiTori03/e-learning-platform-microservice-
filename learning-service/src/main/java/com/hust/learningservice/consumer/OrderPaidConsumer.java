@@ -23,39 +23,55 @@ public class OrderPaidConsumer {
     public void consumeOrderPaidEvent(OrderPaidEvent event) {
         log.info("Received OrderPaidEvent from Kafka: {}", event);
         
-        try {
-            learningService.enrollStudentBulk(event.getUserId(), event.getCourseIds(), event.getOrderId());
-            
-            log.info("Successfully processed enrollment for Order: {}", event.getOrderId());
-            
-            // Bắn ngược lại event "EnrollmentSuccess" cho order-service để hoàn tất Saga
-            EnrollmentSuccessEvent successEvent = EnrollmentSuccessEvent.builder()
-                    .orderId(event.getOrderId())
-                    .userId(event.getUserId())
-                    .status("SUCCESS")
-                    .build();
-            
-            kafkaTemplate.send(KafkaTopics.ENROLLMENT_SUCCESS, event.getOrderId(), successEvent);
-            log.info("Sent EnrollmentSuccessEvent back to Kafka for Order: {}", event.getOrderId());
-            
-        } catch (Exception e) {
-            log.error("Failed to process OrderPaidEvent for Order {}: {}", event.getOrderId(), e.getMessage());
-            
-            // Bắn tin nhắn báo THẤT BẠI về cho order-service để thực hiện Giao dịch bù (Undo)
-            EnrollmentSuccessEvent failEvent = EnrollmentSuccessEvent.builder()
-                    .orderId(event.getOrderId())
-                    .userId(event.getUserId())
-                    .status("FAILED")
-                    .build();
-            
+        int maxAttempts = 3;
+        int attempt = 0;
+        Exception lastException = null;
+        
+        while (attempt < maxAttempts) {
+            attempt++;
             try {
-                kafkaTemplate.send(KafkaTopics.ENROLLMENT_SUCCESS, event.getOrderId(), failEvent);
-                log.info("Sent Enrollment FAILURE callback to order-service for Order: {}", event.getOrderId());
-            } catch (Exception kafkaEx) {
-                log.error("Critial: Could not even send Failure event to Kafka! {}", kafkaEx.getMessage());
+                learningService.enrollStudentBulk(event.getUserId(), event.getCourseIds(), event.getOrderId());
+                log.info("Successfully processed enrollment for Order: {} on attempt {}", event.getOrderId(), attempt);
+                
+                // Bắn ngược lại event "EnrollmentSuccess" cho order-service để hoàn tất Saga
+                EnrollmentSuccessEvent successEvent = EnrollmentSuccessEvent.builder()
+                        .orderId(event.getOrderId())
+                        .userId(event.getUserId())
+                        .status("SUCCESS")
+                        .build();
+                
+                kafkaTemplate.send(KafkaTopics.ENROLLMENT_SUCCESS, event.getOrderId(), successEvent);
+                log.info("Sent EnrollmentSuccessEvent back to Kafka for Order: {}", event.getOrderId());
+                return; // Thoát ngay khi thành công
+                
+            } catch (Exception e) {
+                lastException = e;
+                log.warn("⚠️ Attempt {} of {} failed for Order {}: {}", attempt, maxAttempts, event.getOrderId(), e.getMessage());
+                if (attempt < maxAttempts) {
+                    try {
+                        Thread.sleep(2000); // Trì hoãn 2 giây trước khi thử lại
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
             }
-
-            // Chúng ta KHÔNG throw e nữa để Kafka không retry vô hạn (vì ta đã báo FAILED)
+        }
+        
+        log.error("❌ Process OrderPaidEvent failed completely after {} attempts for Order {}: {}", maxAttempts, event.getOrderId(), lastException != null ? lastException.getMessage() : "Unknown exception");
+        
+        // Bắn tin nhắn báo THẤT BẠI về cho order-service để thực hiện Giao dịch bù (Undo)
+        EnrollmentSuccessEvent failEvent = EnrollmentSuccessEvent.builder()
+                .orderId(event.getOrderId())
+                .userId(event.getUserId())
+                .status("FAILED")
+                .build();
+        
+        try {
+            kafkaTemplate.send(KafkaTopics.ENROLLMENT_SUCCESS, event.getOrderId(), failEvent);
+            log.info("Sent Enrollment FAILURE callback to order-service for Order: {}", event.getOrderId());
+        } catch (Exception kafkaEx) {
+            log.error("Critical: Could not even send Failure event to Kafka! {}", kafkaEx.getMessage());
         }
     }
 }

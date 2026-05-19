@@ -46,3 +46,34 @@ logs/
 # Ignore large Whisper & CUDA binaries and models (exceeding 100MB GitHub limit)
 **/bin/
 **/models/
+
+### Node.js BFF (aggregator-service) ###
+node_modules/
+**/node_modules/
+/aggregator-service/dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+### Python AI Parser (pdf-parser-service) ###
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+**/.venv/
+**/venv/
+.pytest_cache/
+
+### Environment Configs & Secrets ###
+.env
+.env.local
+.env.*.local
+*.env
+
+### OS & System Files ###
+.DS_Store
+Thumbs.db
+
