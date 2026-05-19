@@ -28,7 +28,7 @@ Hệ thống bao gồm **12 mô-đun nghiệp vụ chính** hoạt động độ
 | **`assessment-service`**   |   `9007`    | MongoDB (`assessment_db`)   | Quản lý ngân hàng câu hỏi, bài tập lớn, chấm điểm trắc nghiệm tự động.                                                                                                                                                 |
 | **`worker-service`**       |   `9088`    | _Không_                     | **FFmpeg, Whisper.cpp**. Offload các tác vụ nặng: Nén nạp video HLS Stream, trích xuất ảnh thu nhỏ, tách nhạc WAV mono 16kHz, chạy bóc băng giọng nói offline.                                                         |
 | **`pdf-parser-service`**   |   `8090`    | _Không_                     | **Python, FastAPI, fitz (PyMuPDF), PaddleOCR**. OCR PDF tài liệu học tập tăng tốc bằng **GPU CUDA** (hỗ trợ fallback CPU), chuyển đổi bảng biểu sang Markdown, cắt phân đoạn thông minh kèm tiêu đề phân cấp.          |
-| **`ai-service`**           |   `8099`    | PostgreSQL (`pgvector`)     | **Spring AI, Gemini API, RAG**. Trợ lý ảo AI Tutor RAG trả lời thông minh dựa trên giáo trình khóa học và tự động tạo câu hỏi trắc nghiệm (Smart Quiz Generator).                                                      |
+| **`ai-service`**           |   `8099`    | PostgreSQL (`pgvector`)     | **Spring AI, Gemini API, RAG**. Trợ lý ảo AI Tutor RAG trả lời thông minh dựa trên giáo trình khóa học.                                                                                                                |
 
 ---
 
