@@ -11,7 +11,9 @@ Hệ thống được thiết kế theo kiến trúc **Microservices** phân rã
 ```mermaid
 graph TD
     Client[Frontend Client] -->|HTTPS Requests| BFF[aggregator-service BFF:3000]
-    Client -->|Direct Gateway Route| Gateway[api-gateway:8080
+    Client -->|Direct Gateway Route| Gateway[api-gateway:8080]
+    BFF -->|Aggregate APIs| Gateway
+
 
     %% Gateway Routing
     Gateway -->|9000| Auth[identity-service]
