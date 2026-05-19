@@ -8,53 +8,6 @@
 
 Hệ thống được thiết kế theo kiến trúc **Microservices** phân rã hoàn toàn để tối ưu khả năng mở rộng (Scalability), giao tiếp đồng bộ hiệu năng cao qua **REST / OpenFeign** và giao tiếp bất đồng bộ phi trạng thái qua **Apache Kafka**. Bảo mật tập trung được đảm bảo bằng **Keycloak (OAuth2/OIDC)** và **API Gateway**, đi kèm với dịch vụ bóc tách dữ liệu nâng cao sử dụng **FastAPI (Python)** và **Whisper.cpp (C++)**.
 
-```mermaid
-graph TD
-    Client[Frontend Client] -->|HTTPS Requests| BFF[aggregator-service BFF:3000]
-    Client -->|Direct Gateway Route| Gateway[api-gateway:8080]
-    BFF -->|Aggregate APIs| Gateway
-
-
-    %% Gateway Routing
-    Gateway -->|9000| Auth[identity-service]
-    Gateway -->|9001| Course[course-service]
-    Gateway -->|9002| Media[media-service]
-    Gateway -->|9003| Inter[interaction-service]
-    Gateway -->|9004| Order[order-service]
-    Gateway -->|9005| Learn[learning-service]
-    Gateway -->|9007| Assess[assessment-service]
-    Gateway -->|8099| AI[ai-service]
-
-    %% Shared Discovery & Config
-    Discovery[discovery-service:8761] -.->|Register Service| Gateway
-    Discovery -.->|Register Service| Auth
-    Discovery -.->|Register Service| Course
-    Discovery -.->|Register Service| Media
-    Discovery -.->|Register Service| Inter
-    Discovery -.->|Register Service| Order
-    Discovery -.->|Register Service| Learn
-    Discovery -.->|Register Service| Assess
-    Discovery -.->|Register Service| AI
-    Discovery -.->|Register Service| Worker[worker-service:9088]
-
-    %% Async Saga Flow
-    Order -->|Publish order-paid| Kafka[Kafka Broker]
-    Kafka -->|Consume & Enroll| Learn
-    Learn -->|Publish enrollment-success| Kafka
-    Kafka -->|Consume Saga Result| Order
-
-    %% Heavy Processing Pipeline (Decoupled Compute)
-    Media -->|Publish media-processing| Kafka
-    Kafka -->|Consume Video/PDF Tasks| Worker
-    Worker -->|WAV mono 16kHz| Whisper[Whisper.cpp Offline STT]
-    Worker -->|HTTP POST Multipart| PyParser[pdf-parser-service:8090]
-    Whisper -->|Emit raw-text chunks| Kafka
-    PyParser -->|Emit raw-text chunks| Kafka
-    Kafka -->|Store Vectors| VectorDB[(PostgreSQL + pgvector)]
-```
-
----
-
 ## 📂 2. Danh Sách Các Microservices & Công Nghệ Sử Dụng
 
 Hệ thống bao gồm **12 mô-đun nghiệp vụ chính** hoạt động độc lập và bổ trợ lẫn nhau:
