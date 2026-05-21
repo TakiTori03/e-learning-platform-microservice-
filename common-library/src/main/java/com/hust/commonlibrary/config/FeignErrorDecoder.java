@@ -27,13 +27,19 @@ public class FeignErrorDecoder implements ErrorDecoder {
             ApiResponse<?> apiResponse = objectMapper.readValue(inputStream, ApiResponse.class);
             
             if (apiResponse != null && apiResponse.getMessage() != null) {
-                log.error("Feign Error Decoder [{}]: Status {}, Message {}", 
+                log.error("Feign Error Decoder [{}]: Status {}, Message/Code {}", 
                         methodKey, response.status(), apiResponse.getMessage());
                 
-                // Try to find a matching ErrorCode based on message or status
-                // If your legacy service returns specific error codes, map them here.
-                // For now, we wrap it in a generic UNCATEGORIZED or specific if recognized.
-                return new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION); 
+                try {
+                    int code = Integer.parseInt(apiResponse.getMessage());
+                    for (ErrorCode errorCode : ErrorCode.values()) {
+                        if (errorCode.getCode() == code) {
+                            return new AppException(errorCode);
+                        }
+                    }
+                } catch (NumberFormatException e) {
+                    log.warn("Error message format is not numeric: {}", apiResponse.getMessage());
+                }
             }
         } catch (IOException e) {
             log.error("Failed to decode Feign error response body", e);

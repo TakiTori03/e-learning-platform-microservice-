@@ -6,7 +6,6 @@ import com.hust.commonlibrary.dto.ListResponse;
 import com.hust.commonlibrary.exception.payload.ResourceNotFoundException;
 import com.hust.commonlibrary.utils.SecurityUtils;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.hust.commonlibrary.service.RedisService;
 import com.hust.courseservice.dto.request.CourseRequest;
@@ -32,7 +31,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.TextCriteria;

@@ -28,7 +28,7 @@ public class OutboxPoller {
     @Scheduled(fixedDelay = 3000)
     @Transactional
     public void pollOutboxEvents() {
-        List<OutboxEvent> pendingEvents = outboxEventRepository.findByStatus(OutboxStatus.PENDING);
+        List<OutboxEvent> pendingEvents = outboxEventRepository.findByStatusForUpdate(OutboxStatus.PENDING);
 
         if (pendingEvents.isEmpty()) {
             return;
