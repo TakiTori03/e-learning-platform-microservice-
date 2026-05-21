@@ -11,6 +11,7 @@ include:
   - media/docker-compose.yml
   - assessment/docker-compose.yml
   - observability/docker-compose.yml
+  - ai/docker-compose.yml
 
 networks:
   default:

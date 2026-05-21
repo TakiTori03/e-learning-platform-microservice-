@@ -3,6 +3,7 @@ package com.hust.workerservice.consumer;
 import com.hust.commonlibrary.constant.KafkaTopics;
 import com.hust.commonlibrary.event.LessonMediaReadyEvent;
 import com.hust.commonlibrary.event.MediaProcessingRequestEvent;
+import com.hust.commonlibrary.entity.ContentType;
 import com.hust.commonlibrary.event.RawTextIngestedEvent;
 import com.hust.commonlibrary.annotation.TrackPerformance;
 import com.hust.workerservice.strategy.StorageStrategy;
@@ -28,7 +29,7 @@ public class PdfProcessingConsumer {
 
     private final StorageStrategy storageStrategy;
     private final KafkaTemplate<String, Object> kafkaTemplate;
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
 
     @org.springframework.beans.factory.annotation.Value("${app.parser.service-url:http://127.0.0.1:8090/api/v1/parser/extract}")
     private String parserServiceUrl;
@@ -76,7 +77,7 @@ public class PdfProcessingConsumer {
                                         .lessonId(event.getLessonId())
                                         .mediaId(event.getMediaId())
                                         .content(chunkContent.trim())
-                                        .contentType("PDF")
+                                        .contentType(ContentType.PDF)
                                         .sourceCitation("Trang " + page.getPage())
                                         .build();
                                 

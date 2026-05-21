@@ -222,10 +222,7 @@ public class CourseServiceImpl implements CourseService {
 
         // 1. Search Query
         if (q != null && !q.trim().isEmpty()) {
-            criteriaList.add(new Criteria().orOperator(
-                    Criteria.where("name").regex(q, "i"),
-                    Criteria.where("description").regex(q, "i")
-            ));
+            mongoQuery.addCriteria(TextCriteria.forDefaultLanguage().matching(q));
         }
 
         // 2. Authors
@@ -304,11 +301,11 @@ public class CourseServiceImpl implements CourseService {
         );
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public CourseResponse getFullDetail(String id) {
-        return detail(id);
-    }
+//    @Override
+//    @Transactional(readOnly = true)
+//    public CourseResponse getFullDetail(String id) {
+//        return detail(id);
+//    }
 
     @Override
     @Transactional

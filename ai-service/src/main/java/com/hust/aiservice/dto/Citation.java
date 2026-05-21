@@ -1,4 +1,4 @@
-package com.hust.commonlibrary.event;
+package com.hust.aiservice.dto;
 
 import com.hust.commonlibrary.entity.ContentType;
 import lombok.AllArgsConstructor;
@@ -10,11 +10,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class RawTextIngestedEvent {
-    private String courseId;
+public class Citation {
     private String lessonId;
-    private String mediaId;
-    private String content;
     private ContentType contentType;
     private String sourceCitation;
 }

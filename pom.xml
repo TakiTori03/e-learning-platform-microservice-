@@ -28,7 +28,7 @@
 <!--        <module>notification-service</module>-->
         <module>assessment-service</module>
         <module>worker-service</module>
-<!--        <module>ai-service</module>-->
+       <module>ai-service</module>
     </modules>
 
     <properties>

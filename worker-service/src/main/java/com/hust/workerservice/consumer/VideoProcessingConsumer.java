@@ -3,6 +3,7 @@ package com.hust.workerservice.consumer;
 import com.hust.commonlibrary.constant.KafkaTopics;
 import com.hust.commonlibrary.event.LessonMediaReadyEvent;
 import com.hust.commonlibrary.event.MediaProcessingRequestEvent;
+import com.hust.commonlibrary.entity.ContentType;
 import com.hust.commonlibrary.event.RawTextIngestedEvent;
 import com.hust.commonlibrary.annotation.TrackPerformance;
 import com.hust.workerservice.service.WhisperLocalSpeechToTextService;
@@ -219,7 +220,7 @@ public class VideoProcessingConsumer {
                 .lessonId(event.getLessonId())
                 .mediaId(event.getMediaId())
                 .content(text)
-                .contentType("VIDEO")
+                .contentType(ContentType.VIDEO)
                 .sourceCitation(timestamp) // Trích dẫn trực tiếp giây:phút
                 .build();
         
