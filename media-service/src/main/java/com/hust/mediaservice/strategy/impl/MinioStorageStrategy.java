@@ -6,7 +6,7 @@ import com.amazonaws.services.s3.model.CannedAccessControlList;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.hust.mediaservice.entity.enums.StorageProvider;
+import com.hust.commonlibrary.constant.AppConstants;
 import com.hust.mediaservice.strategy.StorageStrategy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,16 +16,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URL;
 import java.util.Date;
-
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.UUID;
-import java.util.stream.Stream;
 
-@Component("S3")
+@Component(AppConstants.Upload_Strategies.S3)
 @RequiredArgsConstructor
 @Slf4j
 public class MinioStorageStrategy implements StorageStrategy {
@@ -77,24 +71,10 @@ public class MinioStorageStrategy implements StorageStrategy {
         }
     }
 
-    @Override
-    public void uploadDirectory(String localPath, String remotePath) throws IOException {
-        ensureBucketExists();
 
-        Path sourcePath = Paths.get(localPath);
-        try (Stream<Path> paths = Files.walk(sourcePath)) {
-            paths.filter(Files::isRegularFile).forEach(file -> {
-                String key = remotePath + "/" + sourcePath.relativize(file).toString().replace("\\", "/");
-                s3Client.putObject(new PutObjectRequest(bucketName, key, file.toFile())
-                        .withCannedAcl(CannedAccessControlList.PublicRead));
-                log.info("Uploaded {} to S3", key);
-            });
-        }
-    }
 
     @Override
-    public void deleteFile(String fileUrl) throws IOException {
-
+    public void deleteFile(String fileUrl) {
         String key;
         String prefix = endpoint + "/" + bucketName + "/";
         if (fileUrl.startsWith(prefix)) {
@@ -114,23 +94,7 @@ public class MinioStorageStrategy implements StorageStrategy {
         }
     }
 
-    @Override
-    public void downloadFileToLocal(String path, java.io.File destinationFile) throws IOException {
-        log.info("Streaming direct file download from MinIO to local path: {}", destinationFile.getAbsolutePath());
-        try (com.amazonaws.services.s3.model.S3Object s3Object = s3Client.getObject(bucketName, path);
-             java.io.InputStream in = s3Object.getObjectContent()) {
-            
-            java.nio.file.Files.copy(in, destinationFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            log.info("Completed direct download of {} from MinIO.", path);
-        } catch (Exception e) {
-            throw new IOException("Streaming download failed for S3 path: " + path, e);
-        }
-    }
 
-    @Override
-    public String getProviderName() {
-        return StorageProvider.S3.toString();
-    }
 
     @Override
     public String generatePresignedUploadUrl(String objectKey, int expirationMinutes) {

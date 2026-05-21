@@ -44,10 +44,6 @@ app:
     secret-key: ${MINIO_SECRET_KEY:minioadmin}
     bucket-name: ${MINIO_BUCKET:elearning-media}
     region: ${MINIO_REGION:us-east-1}
-  # gemini:
-  #   api-key: ${GEMINI_API_KEY:}
-  #   chunk-duration-seconds: ${GEMINI_CHUNK_DURATION_SECONDS:300}
-  #   max-attempts: ${GEMINI_MAX_ATTEMPTS:5}
   whisper:
     enabled: ${WHISPER_ENABLED:true}
     path: ${WHISPER_PATH:bin/whisper-cli.exe}

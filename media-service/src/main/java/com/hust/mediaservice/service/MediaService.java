@@ -14,7 +14,7 @@ import com.hust.commonlibrary.annotation.CustomCache;
 import com.hust.mediaservice.client.LearningClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -29,17 +29,9 @@ import java.util.UUID;
 public class MediaService {
     private final MediaRepository mediaRepository;
     private final StorageStrategy storageStrategy;
-    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+    private final ApplicationEventPublisher eventPublisher;
     private final LearningClient learningClient;
 
-    @Value("${app.storage.local-path:./uploads}")
-    private String baseStoragePath;
-
-    @Value("${app.minio.endpoint:}")
-    private String minioEndpoint;
-
-    @Value("${app.minio.bucket-name:}")
-    private String bucketName;
 
     public Media upload(MultipartFile file, MediaType type) throws IOException {
         if (type == MediaType.VIDEO) {
@@ -79,7 +71,7 @@ public class MediaService {
                 .orElseThrow(() -> new ResourceNotFoundException("Media", "id", id));
     }
 
-    public void deleteMedia(String id) throws IOException {
+    public void deleteMedia(String id) {
         Media media = getById(id);
         
         // 1. Xóa file chính trên MinIO
@@ -95,12 +87,16 @@ public class MediaService {
         if (media.getRawFileKey() != null) {
             try {
                 storageStrategy.deleteFile(media.getRawFileKey());
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                log.debug("Failed to delete raw video key: {}", e.getMessage());
+            }
         }
         if (media.getThumbnailUrl() != null) {
             try {
                 storageStrategy.deleteFile(media.getThumbnailUrl());
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                log.debug("Failed to delete thumbnail URL: {}", e.getMessage());
+            }
         }
         
         // 3. Xóa record trong MongoDB
@@ -124,7 +120,7 @@ public class MediaService {
     }
 
     public PresignedUrlResponse generatePresignedUrlForVideo(String fileName, String contentType) {
-        String rawFileKey = "raw-videos/" + UUID.randomUUID().toString() + "_" + fileName;
+        String rawFileKey = "raw-videos/" + UUID.randomUUID()+ "_" + fileName;
         
         log.info("Creating PENDING media asset. Requesting Presigned PUT URL for: {}", rawFileKey);
         String uploadUrl = storageStrategy.generatePresignedUploadUrl(rawFileKey, 15);

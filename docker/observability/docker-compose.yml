@@ -60,7 +60,7 @@ services:
       - default
 
   elearning-tempo:
-    image: grafana/tempo:latest
+    image: grafana/tempo:2.4.1
     container_name: elearning-tempo
     command: [ "-config.file=/etc/tempo.yaml" ]
     volumes:

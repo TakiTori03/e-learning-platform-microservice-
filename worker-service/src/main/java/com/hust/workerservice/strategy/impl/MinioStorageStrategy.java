@@ -1,25 +1,21 @@
 package com.hust.workerservice.strategy.impl;
 
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.HttpMethod;
 import com.amazonaws.services.s3.model.*;
+import com.hust.commonlibrary.constant.AppConstants;
 import com.hust.workerservice.strategy.StorageStrategy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.net.URL;
-import java.util.Date;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.UUID;
 import java.util.stream.Stream;
 
-@Component("S3")
+@Component(AppConstants.Upload_Strategies.S3)
 @RequiredArgsConstructor
 @Slf4j
 public class MinioStorageStrategy implements StorageStrategy {
@@ -32,21 +28,7 @@ public class MinioStorageStrategy implements StorageStrategy {
     @Value("${app.minio.endpoint}")
     private String endpoint;
 
-    @Override
-    public String uploadFile(MultipartFile file, String folderName) throws IOException {
-        ensureBucketExists();
 
-        String prefix = (folderName == null || folderName.isBlank()) ? "" : folderName + "/";
-        String fileName = prefix + UUID.randomUUID() + "_" + file.getOriginalFilename();
-        ObjectMetadata metadata = new ObjectMetadata();
-        metadata.setContentType(file.getContentType());
-        metadata.setContentLength(file.getSize());
-
-        s3Client.putObject(new PutObjectRequest(bucketName, fileName, file.getInputStream(), metadata)
-                .withCannedAcl(CannedAccessControlList.PublicRead));
-
-        return String.format("%s/%s/%s", endpoint, bucketName, fileName);
-    }
 
     private void ensureBucketExists() {
         if (!s3Client.doesBucketExistV2(bucketName)) {
@@ -86,7 +68,7 @@ public class MinioStorageStrategy implements StorageStrategy {
     }
 
     @Override
-    public void deleteFile(String fileUrl) throws IOException {
+    public void deleteFile(String fileUrl) {
         String key;
         String prefix = endpoint + "/" + bucketName + "/";
         if (fileUrl.startsWith(prefix)) {
@@ -97,14 +79,7 @@ public class MinioStorageStrategy implements StorageStrategy {
         s3Client.deleteObject(bucketName, key);
     }
 
-    @Override
-    public byte[] getFile(String path) throws IOException {
-        try (S3Object s3Object = s3Client.getObject(bucketName, path)) {
-            return s3Object.getObjectContent().readAllBytes();
-        } catch (Exception e) {
-            throw new IOException("Failed to fetch file from S3: " + path, e);
-        }
-    }
+
 
     @Override
     public void downloadFileToLocal(String path, java.io.File destinationFile) throws IOException {
@@ -126,28 +101,5 @@ public class MinioStorageStrategy implements StorageStrategy {
         }
     }
 
-    @Override
-    public String getProviderName() {
-        return "S3";
-    }
 
-    @Override
-    public String generatePresignedUploadUrl(String objectKey, int expirationMinutes) {
-        ensureBucketExists();
-        
-        Date expiration = new Date();
-        long expTimeMillis = expiration.getTime();
-        expTimeMillis += 1000L * 60 * expirationMinutes;
-        expiration.setTime(expTimeMillis);
-
-        log.info("Generating Presigned PUT URL for object: {} valid for {} minutes", objectKey, expirationMinutes);
-
-        GeneratePresignedUrlRequest generatePresignedUrlRequest =
-                new GeneratePresignedUrlRequest(bucketName, objectKey)
-                        .withMethod(HttpMethod.PUT)
-                        .withExpiration(expiration);
-
-        URL url = s3Client.generatePresignedUrl(generatePresignedUrlRequest);
-        return url.toString();
-    }
 }
