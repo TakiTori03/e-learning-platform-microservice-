@@ -107,15 +107,15 @@ public class CourseController {
         );
     }
 
-    @GetMapping("/detail/{id}")
-    public ResponseEntity<ApiResponse<CourseResponse>> getFullDetail(@PathVariable String id) {
-        return ResponseEntity.ok(
-                ApiResponse.<CourseResponse>builder()
-                        .success(true)
-                        .payload(courseService.getFullDetail(id))
-                        .build()
-        );
-    }
+//    @GetMapping("/detail/{id}")
+//    public ResponseEntity<ApiResponse<CourseResponse>> getFullDetail(@PathVariable String id) {
+//        return ResponseEntity.ok(
+//                ApiResponse.<CourseResponse>builder()
+//                        .success(true)
+//                        .payload(courseService.getFullDetail(id))
+//                        .build()
+//        );
+//    }
 
     @PostMapping("/increase-view/{id}")
     public ResponseEntity<ApiResponse<Void>> increaseView(@PathVariable String id) {

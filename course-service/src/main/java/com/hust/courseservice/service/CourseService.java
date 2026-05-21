@@ -25,7 +25,7 @@ public interface CourseService {
     // Specific Monolith Functionalities
     List<CourseResponse> getPopularCourses(int limit);
     List<CourseResponse> getRelatedCourses(String courseId, int limit);
-    CourseResponse getFullDetail(String id); // getCourseDetail
+//    CourseResponse getFullDetail(String id); // getCourseDetail
     void increaseView(String id);
     void updateStatus(String id); // updateActiveStatusCourse
     List<CourseResponse> getAllActiveCourses();
