@@ -9,7 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import com.hust.orderservice.constant.OrderStatus;
-import com.hust.orderservice.entity.Order;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
@@ -17,9 +16,7 @@ import com.hust.orderservice.dto.response.CourseSalesReportResponse;
 import com.hust.orderservice.dto.response.OrderResponse;
 import com.hust.orderservice.dto.response.RevenueDataPoint;
 import com.hust.orderservice.dto.response.RevenueReportResponse;
-
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -34,7 +31,20 @@ public class ReportServiceImpl implements ReportService {
     public RevenueReportResponse getRevenueReport(String startDate, String endDate, String groupBy) {
         log.info("Generating revenue report from {} to {} grouped by {}", startDate, endDate, groupBy);
         
-        List<RevenueProjection> rawData = orderRepository.getRevenuesByMonth(OrderStatus.COMPLETED.name());
+        String format = "YYYY-MM-DD"; // Default to day
+        if ("month".equalsIgnoreCase(groupBy)) {
+            format = "YYYY-MM";
+        } else if ("year".equalsIgnoreCase(groupBy)) {
+            format = "YYYY";
+        }
+
+        // Standardize date strings to include time if needed for casting
+        String startParam = (startDate != null && !startDate.trim().isEmpty() && !startDate.contains(" ")) ? startDate + " 00:00:00" : startDate;
+        String endParam = (endDate != null && !endDate.trim().isEmpty() && !endDate.contains(" ")) ? endDate + " 23:59:59" : endDate;
+
+        List<RevenueProjection> rawData = orderRepository.getRevenuesDynamic(
+            OrderStatus.COMPLETED.name(), startParam, endParam, format
+        );
         
         List<RevenueDataPoint> dataPoints = rawData.stream().map(row -> 
             RevenueDataPoint.builder()

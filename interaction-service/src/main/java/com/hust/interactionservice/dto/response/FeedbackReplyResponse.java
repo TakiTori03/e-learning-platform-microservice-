@@ -15,7 +15,6 @@ import lombok.experimental.SuperBuilder;
 public class FeedbackReplyResponse extends TimeResponse {
     private String id;
     private String feedbackId;
-    private String userId;
     private String content;
 }
 

@@ -3,6 +3,7 @@ import { Request } from 'express';
 // --- Common Interfaces ---
 export interface EnhancedRequest extends Request {
   userId?: string | null;
+  userRole?: string | null;
 }
 
 export interface ApiResponse<T> {
@@ -63,6 +64,9 @@ export interface CourseResponse {
   sectionCount?: number | null;
   lessonCount?: number | null;
   totalVideosLength?: number | null;
+  avgRatingStars?: number;
+  studentCount?: number;
+  numOfReviews?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -108,6 +112,7 @@ export interface CourseCardDTO {
   finalPrice: number;
   access: string;
   level: string;
+  status?: string;
   instructorId: string;
   instructor: {
     id: string;

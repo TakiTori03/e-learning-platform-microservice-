@@ -19,7 +19,6 @@ public class MediaResponse extends TimeResponse {
     private String contentType;
     private Long fileSize;
     private String url;
-    private String thumbnailUrl;
     private String provider;
     private String status;
     private Double duration;

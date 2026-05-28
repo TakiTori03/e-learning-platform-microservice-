@@ -28,7 +28,18 @@ public class ReportServiceImpl implements ReportService {
     public SignupReportResponse getNewSignupsReport(String startDate, String endDate, String groupBy) {
         log.info("Generating new signups report from {} to {} grouped by {}", startDate, endDate, groupBy);
         
-        List<SignupProjection> rawData = userRepository.getNewSignupsByMonth();
+        String format = "YYYY-MM-DD"; // Default to day
+        if ("month".equalsIgnoreCase(groupBy)) {
+            format = "YYYY-MM";
+        } else if ("year".equalsIgnoreCase(groupBy)) {
+            format = "YYYY";
+        }
+
+        // Standardize date strings to include time if needed for casting, e.g., 2026-05-28 -> 2026-05-28 00:00:00
+        String startParam = (startDate != null && !startDate.trim().isEmpty() && !startDate.contains(" ")) ? startDate + " 00:00:00" : startDate;
+        String endParam = (endDate != null && !endDate.trim().isEmpty() && !endDate.contains(" ")) ? endDate + " 23:59:59" : endDate;
+
+        List<SignupProjection> rawData = userRepository.getNewSignupsDynamic(startParam, endParam, format);
         
         List<SignupDataPoint> dataPoints = rawData.stream().map(row -> 
             SignupDataPoint.builder()

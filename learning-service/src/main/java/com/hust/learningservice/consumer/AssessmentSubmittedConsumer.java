@@ -32,7 +32,7 @@ public class AssessmentSubmittedConsumer {
                 String lessonId = event.getTargetId();
 
                 log.info("🎓 Syncing submitted assessment outcome to academic progress. User [{}], Lesson [{}]", userId, lessonId);
-                learningService.completeQuizLesson(userId, lessonId); // Reuse the same logic to mark lesson as completed
+                learningService.completeQuizLesson(userId, lessonId);
                 
                 log.info("✅ Successfully processed assessment completion event for Submission: {}", event.getSubmissionId());
             } else {

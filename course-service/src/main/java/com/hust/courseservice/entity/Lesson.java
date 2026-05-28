@@ -21,16 +21,10 @@ public class Lesson extends BaseDocument {
     private String name;
     private String description;
 
-    /**
-     * 📝 The Dynamic Content Payload depending on the LessonType:
-     * - VIDEO      ->  Lecture Notes, Markdown Transcripts, External GitHub Links. (Stream is in mediaId)
-     * - DOCUMENT   ->  The main Rich Text / HTML reading material.
-     * - QUIZ       -> Quiz guidelines, passing rules, or JSON configuration.
-     * - CODING     ->  Problem statement, coding instructions, and skeleton boilerplate.
-     * - ASSIGNMENT ->  Detailed project specification, grading rubric, and download templates.
-     */
+  
     private String content; 
     private Double videoLength;
+    private String transcriptUrl;
 
     private CourseAccess access;
     private LessonType type; 

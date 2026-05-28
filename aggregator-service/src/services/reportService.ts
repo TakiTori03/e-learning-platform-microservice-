@@ -1,5 +1,6 @@
 import axios from "axios";
 import { config } from "../config/index.js";
+import { inMemoryCache } from "../utils/InMemoryCache.js";
 import {
   ApiResponse,
   RevenueReportResponse,
@@ -14,27 +15,45 @@ import {
 } from "../types/index.js";
 
 /**
+ * Helper to wrap service functions with cache get/set logic.
+ * Default cache duration is 5 minutes (300,000 ms).
+ */
+const getCachedData = async <T>(key: string, fetchFn: () => Promise<T>, ttlMs?: number): Promise<T> => {
+  const cached = inMemoryCache.get<T>(key);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const result = await fetchFn();
+  inMemoryCache.set(key, result, ttlMs);
+  return result;
+};
+
+/**
  * Orchestrates calls across Microservices to fetch Dashboard Analytics
  */
 
 export const getSummary = async (): Promise<SummaryReportResponse> => {
-  // Parallel fetch from multiple domains
-  const [revenueRes, signupsRes, insightsRes] = await Promise.all([
-    axios.get<ApiResponse<RevenueReportResponse>>(`${config.gatewayUrl}/order/admin/reports/revenues`).catch(() => null),
-    axios.get<ApiResponse<SignupReportResponse>>(`${config.gatewayUrl}/identity/admin/reports/new-signups`).catch(() => null),
-    axios.get<ApiResponse<CourseInsightReportResponse>>(`${config.gatewayUrl}/course/admin/reports/course-insights`).catch(() => null),
-  ]);
+  return getCachedData("summary", async () => {
+    // Parallel fetch from multiple domains
+    const [revenueRes, signupsRes, insightsRes] = await Promise.all([
+      axios.get<ApiResponse<RevenueReportResponse>>(`${config.gatewayUrl}/order/admin/reports/revenues`).catch(() => null),
+      axios.get<ApiResponse<SignupReportResponse>>(`${config.gatewayUrl}/identity/admin/reports/new-signups`).catch(() => null),
+      axios.get<ApiResponse<CourseInsightReportResponse>>(`${config.gatewayUrl}/course/admin/reports/course-insights`).catch(() => null),
+    ]);
 
-  return {
-    revenueData: revenueRes?.data?.payload || null,
-    signupData: signupsRes?.data?.payload || null,
-    courseData: insightsRes?.data?.payload || null,
-  };
+    return {
+      revenueData: revenueRes?.data?.payload || null,
+      signupData: signupsRes?.data?.payload || null,
+      courseData: insightsRes?.data?.payload || null,
+    };
+  });
 };
 
 export const getCourseSales = async (): Promise<CourseSalesReportResponse[]> => {
-  const res = await axios.get<ApiResponse<CourseSalesReportResponse[]>>(`${config.gatewayUrl}/order/admin/reports/course-sales`);
-  return res.data?.payload || [];
+  return getCachedData("course-sales", async () => {
+    const res = await axios.get<ApiResponse<CourseSalesReportResponse[]>>(`${config.gatewayUrl}/order/admin/reports/course-sales`);
+    return res.data?.payload || [];
+  });
 };
 
 export const getRevenues = async (startDate?: string, endDate?: string, groupBy?: string): Promise<RevenueReportResponse | null> => {
@@ -42,9 +61,12 @@ export const getRevenues = async (startDate?: string, endDate?: string, groupBy?
   if (startDate) params.append("startDate", startDate);
   if (endDate) params.append("endDate", endDate);
   if (groupBy) params.append("groupBy", groupBy);
-  
-  const res = await axios.get<ApiResponse<RevenueReportResponse>>(`${config.gatewayUrl}/order/admin/reports/revenues?${params.toString()}`);
-  return res.data?.payload || null;
+
+  const cacheKey = `revenues:${startDate || ""}:${endDate || ""}:${groupBy || ""}`;
+  return getCachedData(cacheKey, async () => {
+    const res = await axios.get<ApiResponse<RevenueReportResponse>>(`${config.gatewayUrl}/order/admin/reports/revenues?${params.toString()}`);
+    return res.data?.payload || null;
+  });
 };
 
 export const getNewSignups = async (startDate?: string, endDate?: string, groupBy?: string): Promise<SignupReportResponse | null> => {
@@ -53,34 +75,51 @@ export const getNewSignups = async (startDate?: string, endDate?: string, groupB
   if (endDate) params.append("endDate", endDate);
   if (groupBy) params.append("groupBy", groupBy);
 
-  const res = await axios.get<ApiResponse<SignupReportResponse>>(`${config.gatewayUrl}/identity/admin/reports/new-signups?${params.toString()}`);
-  return res.data?.payload || null;
+  const cacheKey = `new-signups:${startDate || ""}:${endDate || ""}:${groupBy || ""}`;
+  return getCachedData(cacheKey, async () => {
+    const res = await axios.get<ApiResponse<SignupReportResponse>>(`${config.gatewayUrl}/identity/admin/reports/new-signups?${params.toString()}`);
+    return res.data?.payload || null;
+  });
 };
 
 export const getUsersProgress = async (): Promise<CourseProgressReportResponse[]> => {
-  const res = await axios.get<ApiResponse<CourseProgressReportResponse[]>>(`${config.gatewayUrl}/learning/admin/reports/users-progress`);
-  return res.data?.payload || [];
+  return getCachedData("users-progress", async () => {
+    const res = await axios.get<ApiResponse<CourseProgressReportResponse[]>>(`${config.gatewayUrl}/learning/admin/reports/users-progress`);
+    return res.data?.payload || [];
+  });
 };
 
 export const getCourseInsights = async (): Promise<CourseInsightReportResponse | null> => {
-  const res = await axios.get<ApiResponse<CourseInsightReportResponse>>(`${config.gatewayUrl}/course/admin/reports/course-insights`);
-  return res.data?.payload || null;
+  return getCachedData("course-insights", async () => {
+    const res = await axios.get<ApiResponse<CourseInsightReportResponse>>(`${config.gatewayUrl}/course/admin/reports/course-insights`);
+    return res.data?.payload || null;
+  });
 };
 
 export const getCoursesReportByAuthor = async (authorId?: string): Promise<AuthorCourseReportResponse | null> => {
-  const url = authorId 
-    ? `${config.gatewayUrl}/course/admin/reports/courses-by-author?authorId=${authorId}`
-    : `${config.gatewayUrl}/course/admin/reports/courses-by-author`;
-  const res = await axios.get<ApiResponse<AuthorCourseReportResponse>>(url);
-  return res.data?.payload || null;
+  const cacheKey = `author-report:${authorId || "all"}`;
+  return getCachedData(cacheKey, async () => {
+    const url = authorId 
+      ? `${config.gatewayUrl}/course/admin/reports/courses-by-author?authorId=${authorId}`
+      : `${config.gatewayUrl}/course/admin/reports/courses-by-author`;
+    const res = await axios.get<ApiResponse<AuthorCourseReportResponse>>(url);
+    return res.data?.payload || null;
+  });
 };
 
 export const getTopUsers = async (limit: number = 10): Promise<UserResponse[]> => {
-  const res = await axios.get<ApiResponse<UserResponse[]>>(`${config.gatewayUrl}/identity/admin/reports/top-users?limit=${limit}`);
-  return res.data?.payload || [];
+  const cacheKey = `top-users:${limit}`;
+  return getCachedData(cacheKey, async () => {
+    const res = await axios.get<ApiResponse<UserResponse[]>>(`${config.gatewayUrl}/identity/admin/reports/top-users?limit=${limit}`);
+    return res.data?.payload || [];
+  });
 };
 
 export const getTopOrders = async (limit: number = 10): Promise<OrderResponse[]> => {
-  const res = await axios.get<ApiResponse<OrderResponse[]>>(`${config.gatewayUrl}/order/admin/reports/top-orders?limit=${limit}`);
-  return res.data?.payload || [];
+  const cacheKey = `top-orders:${limit}`;
+  return getCachedData(cacheKey, async () => {
+    const res = await axios.get<ApiResponse<OrderResponse[]>>(`${config.gatewayUrl}/order/admin/reports/top-orders?limit=${limit}`);
+    return res.data?.payload || [];
+  });
 };
+

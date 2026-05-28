@@ -45,8 +45,22 @@ export const getCourseInsights = catchAsync(async (req: EnhancedRequest, res: Re
 });
 
 export const getCoursesReportByAuthor = catchAsync(async (req: EnhancedRequest, res: Response) => {
-  const { authorId } = req.query;
-  const data = await reportService.getCoursesReportByAuthor(authorId as string);
+  const userId = req.userId;
+  const userRole = req.userRole;
+
+  if (!userId) {
+    return ResponseHelper.error(res, "Unauthorized: Missing token.", 401);
+  }
+
+  let targetAuthorId = req.query.authorId as string;
+
+  if (userRole === "INSTRUCTOR") {
+    targetAuthorId = userId;
+  } else if (userRole !== "ADMIN") {
+    return ResponseHelper.error(res, "Access denied: Admin or Instructor role required.", 403);
+  }
+
+  const data = await reportService.getCoursesReportByAuthor(targetAuthorId);
   return ResponseHelper.success(res, data);
 });
 

@@ -29,7 +29,6 @@ public class UserResponse extends TimeResponse {
     private String biography;
     private String language;
 
-    // Map chứa các link socials (Facebook, LinkedIn...)
     private Map<String, String> socials;
 
     private boolean showProfile;

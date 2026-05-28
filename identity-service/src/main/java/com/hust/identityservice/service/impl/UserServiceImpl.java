@@ -72,7 +72,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    @CustomCacheEvict(key = "'user:profile:' + #userId") // 🧹 DỌN DẸP CACHE: Xóa cache profile khi Admin phê duyệt hoặc đổi status!
+    @CustomCacheEvict(key = "'user:profile:' + #userId")
     public void updateUserStatus(String userId, String status) {
         User user = userRepository.findById(UUID.fromString(userId))
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
@@ -98,7 +98,28 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @CustomCache(key = "'user:profile:' + #id", ttl = 24, unit = TimeUnit.HOURS) // 🚀 TRỌNG TÂM CACHING: Tự động Cache 24H cho Profile (Giảm tải 90% DB)!
+    @Transactional
+    public void approveInstructor(String userId) {
+        User user = userRepository.findById(UUID.fromString(userId))
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        if (user.getStatus() != UserStatus.PENDING) {
+            throw new AppException(ErrorCode.VALIDATION_ERROR);
+        }
+
+        log.info("Admin approved instructor registration for user: {}", userId);
+
+        // 1. Gán trên Keycloak
+        authRepository.assignRole(userId, AppConstants.Role_Constants.ROLE_INSTRUCTOR);
+
+        // 2. Đồng bộ Ghi kép xuống Local DB SQL
+        user.setStatus(UserStatus.ACTIVE);
+        user.setRole(AppConstants.Role_Constants.ROLE_INSTRUCTOR);
+        userRepository.save(user);
+    }
+
+    @Override
+    @CustomCache(key = "'user:profile:' + #id", ttl = 24, unit = TimeUnit.HOURS)
     public UserResponse getUserById(String id) {
         User user = userRepository.findById(UUID.fromString(id))
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
@@ -130,7 +151,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    @CustomCacheEvict(key = "'user:profile:' + #currentUserId") // 🧹 DỌN DẸP CACHE: Xóa cache profile cũ khi User tự cập nhật!
+    @CustomCacheEvict(key = "'user:profile:' + #currentUserId")
     public UserResponse updateMyProfile(UserUpdateRequest request) {
         String userId = SecurityUtils.getCurrentUserIdOrThrow();
         User user = userRepository.findById(UUID.fromString(userId))
@@ -143,6 +164,7 @@ public class UserServiceImpl implements UserService {
         if (request.getAvatar() != null) user.setAvatar(request.getAvatar());
         if (request.getHeadline() != null) user.setHeadline(request.getHeadline());
         if (request.getBiography() != null) user.setBiography(request.getBiography());
+        if (request.getSocials() != null) user.setSocials(request.getSocials());
         if (request.getLanguage() != null) user.setLanguage(request.getLanguage());
         if (request.getShowProfile() != null) user.setShowProfile(request.getShowProfile());
         if (request.getShowCourses() != null) user.setShowCourses(request.getShowCourses());
@@ -151,6 +173,15 @@ public class UserServiceImpl implements UserService {
         
         // Trả về trực tiếp từ mapper (Không gọi Keycloak)
         return userMapper.toUserResponse(user);
+    }
+
+    @Override
+    public List<UserResponse> getInstructorsSelect() {
+        log.info("Fetching all instructors from DB for selection dropdown");
+        List<User> instructors = userRepository.findByRole(AppConstants.Role_Constants.ROLE_INSTRUCTOR);
+        return instructors.stream()
+                .map(userMapper::toUserResponse)
+                .toList();
     }
 
     @Override

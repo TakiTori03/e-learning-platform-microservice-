@@ -5,6 +5,9 @@ import com.hust.assessmentservice.dto.request.AssignmentSubmissionRequest;
 import com.hust.assessmentservice.dto.request.GradeSubmissionRequest;
 import com.hust.assessmentservice.dto.response.AssignmentSubmissionResponse;
 import com.hust.assessmentservice.service.AssignmentSubmissionService;
+import com.hust.assessmentservice.service.AssignmentService;
+import com.hust.assessmentservice.dto.response.AssignmentResponse;
+import com.hust.assessmentservice.entity.enums.TargetType;
 import com.hust.commonlibrary.utils.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +22,7 @@ import java.util.List;
 public class AssignmentSubmissionController {
 
     private final AssignmentSubmissionService submissionService;
+    private final AssignmentService assignmentService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<AssignmentSubmissionResponse>> submitAssignment(
@@ -68,6 +72,36 @@ public class AssignmentSubmissionController {
         AssignmentSubmissionResponse response = submissionService.gradeSubmission(submissionId, request);
         return ResponseEntity.ok(
                 ApiResponse.<AssignmentSubmissionResponse>builder()
+                        .success(true)
+                        .payload(response)
+                        .build()
+        );
+    }
+
+    @GetMapping("/course/{courseId}")
+    @PreAuthorize("hasRole('INSTRUCTOR')")
+    public ResponseEntity<ApiResponse<List<AssignmentSubmissionResponse>>> getSubmissionsByCourse(
+            @PathVariable String courseId) {
+        
+        AssignmentResponse assignment = null;
+        try {
+            assignment = assignmentService.getAssignmentByTarget(courseId, TargetType.COURSE);
+        } catch (Exception e) {
+            // Assignment not found or other errors, return empty list
+        }
+        
+        if (assignment == null) {
+            return ResponseEntity.ok(
+                    ApiResponse.<List<AssignmentSubmissionResponse>>builder()
+                            .success(true)
+                            .payload(List.of())
+                            .build()
+            );
+        }
+        
+        List<AssignmentSubmissionResponse> response = submissionService.getSubmissionsByAssignment(assignment.getId());
+        return ResponseEntity.ok(
+                ApiResponse.<List<AssignmentSubmissionResponse>>builder()
                         .success(true)
                         .payload(response)
                         .build()

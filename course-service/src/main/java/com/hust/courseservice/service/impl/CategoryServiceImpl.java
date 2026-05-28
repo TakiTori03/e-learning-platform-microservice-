@@ -11,8 +11,11 @@ import com.hust.courseservice.repository.CategoryRepository;
 import com.hust.courseservice.service.CategoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.mongodb.core.query.TextCriteria;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import java.text.Normalizer;
@@ -26,6 +29,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final CategoryMapper categoryMapper;
+    private final MongoTemplate mongoTemplate;
 
     @Override
     public CategoryResponse create(CategoryRequest request) {
@@ -71,13 +75,21 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public ListResponse<CategoryResponse> search(String text, Pageable pageable) {
-        Page<Category> categoryPage;
-        if (text == null || text.trim().isEmpty()) {
-            categoryPage = categoryRepository.findAll(pageable);
-        } else {
-            TextCriteria criteria = TextCriteria.forDefaultLanguage().matchingAny(text);
-            categoryPage = categoryRepository.findAllBy(criteria, pageable);
+        Query query = new Query();
+
+        if (text != null && !text.trim().isEmpty()) {
+            String sanitizedText = Pattern.quote(text.trim());
+            query.addCriteria(new Criteria().orOperator(
+                    Criteria.where("name").regex(sanitizedText, "i"),
+                    Criteria.where("description").regex(sanitizedText, "i")
+            ));
         }
+
+        long total = mongoTemplate.count(query, Category.class);
+        query.with(pageable);
+        List<Category> categories = mongoTemplate.find(query, Category.class);
+
+        Page<Category> categoryPage = new PageImpl<>(categories, pageable, total);
         return ListResponse.of(categoryMapper.entityToResponse(categoryPage.getContent()), categoryPage);
     }
 

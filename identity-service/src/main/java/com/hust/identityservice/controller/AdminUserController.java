@@ -65,6 +65,17 @@ public class AdminUserController {
         );
     }
 
+    @PutMapping("/{id}/approve-instructor")
+    public ResponseEntity<ApiResponse<Void>> approveInstructor(@PathVariable String id) {
+        userService.approveInstructor(id);
+        return ResponseEntity.ok(
+                ApiResponse.<Void>builder()
+                        .success(true)
+                        .message("Instructor registration approved successfully")
+                        .build()
+        );
+    }
+
     @PostMapping("/{id}/roles")
     public ResponseEntity<ApiResponse<Void>> assignRole(
             @PathVariable String id,

@@ -29,14 +29,18 @@ public class LessonMediaReadyConsumer {
 
         try {
             mediaRepository.findById(event.getMediaId()).ifPresentOrElse(media -> {
-                media.setStatus(Media.MediaStatus.READY);
+                if (event.getFileSize() != null && event.getFileSize() < 0) {
+                    media.setStatus(Media.MediaStatus.FAILED);
+                    log.warn("⚠️ Media processing failed for ID: {}", event.getMediaId());
+                } else {
+                    media.setStatus(Media.MediaStatus.READY);
+                }
+                
                 if (event.getUrl() != null) {
                     media.setUrl(event.getUrl());
                 }
-                if (event.getThumbnailUrl() != null) {
-                    media.setThumbnailUrl(event.getThumbnailUrl());
-                }
-                if (event.getFileSize() != null) {
+
+                if (event.getFileSize() != null && event.getFileSize() >= 0) {
                     media.setFileSize(event.getFileSize());
                 }
                 if (event.getDuration() != null) {

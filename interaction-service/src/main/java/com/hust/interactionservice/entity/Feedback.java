@@ -14,7 +14,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Feedback extends BaseDocument {
-    private String userId;
+    private String name;
+    private String email;
     private FeedbackType type;
     private String title;
     private String content;

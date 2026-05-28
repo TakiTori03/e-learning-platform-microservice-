@@ -18,10 +18,10 @@ public class LessonResponse extends TimeResponse {
     private String description;
     private String content; 
     private Double videoLength;
+    private String transcriptUrl;
     private String access;
     private String type; 
     private Integer position;
     private String sectionId;
     private String courseId;
-    private Boolean isDone;
 }

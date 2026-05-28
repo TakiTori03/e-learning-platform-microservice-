@@ -63,7 +63,6 @@ public class VideoProcessingConsumer {
 
             // 2. Chuyển đổi sang định dạng HLS (phân đoạn .ts) & Trích xuất ảnh thu nhỏ (Thumbnail)
             videoProcessingService.processToHls(tempFile, hlsFolderName);
-            videoProcessingService.extractThumbnail(tempFile, hlsFolderName);
 
             // 3. Tách luồng âm thanh siêu nhẹ dạng MP3 16kHz
             String relativeAudioPath = videoProcessingService.extractAudio(tempFile, hlsFolderName);
@@ -81,7 +80,7 @@ public class VideoProcessingConsumer {
 
             // 6. Tạo liên kết công khai
             String url = String.format("%s/%s/%s/playlist.m3u8", minioEndpoint, bucketName, remoteHlsPath);
-            String thumbnailUrl = String.format("%s/%s/%s/thumbnail.jpg", minioEndpoint, bucketName, remoteHlsPath);
+
             String transcriptUrl = String.format("%s/%s/%s/subtitles.vtt", minioEndpoint, bucketName, remoteHlsPath);
 
             // 7. Phát sự kiện LessonMediaReadyEvent báo cáo hoàn tất
@@ -94,7 +93,6 @@ public class VideoProcessingConsumer {
                     .hlsFolderName(hlsFolderName)
                     .transcriptUrl(transcriptUrl)
                     .url(url)
-                    .thumbnailUrl(thumbnailUrl)
                     .fileSize(fileSize)
                     .duration(duration)
                     .build();
@@ -195,7 +193,7 @@ public class VideoProcessingConsumer {
         }
 
         // Emit nốt chunk cuối cùng còn sót lại
-        if (currentChunk.length() > 0 && currentStartTimestamp != null) {
+        if (!currentChunk.isEmpty() && currentStartTimestamp != null) {
             emitRawTextEvent(event, currentChunk.toString().trim(), currentStartTimestamp);
         }
     }

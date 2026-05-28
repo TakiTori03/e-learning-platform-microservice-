@@ -55,7 +55,22 @@ public final class KafkaTopics {
     /**
      * Triggered when a media asset is successfully processed and ready for streaming/reading.
      * Producer: worker-service
-     * Consumer: media-service
+     * Consumer: media-service (cập nhật trạng thái Media entity)
+     * Consumer: course-service (cập nhật content URL + videoLength vào Lesson entity)
      */
     public static final String LESSON_MEDIA_READY = "lesson-media-ready-topic";
+
+    /**
+     * Triggered when review statistics (avg rating, count) change for a course.
+     * Producer: interaction-service
+     * Consumer: course-service
+     */
+    public static final String COURSE_REVIEW_UPDATED = "course-review-updated-topic";
+
+    /**
+     * Triggered when enrollment count changes for a course.
+     * Producer: learning-service
+     * Consumer: course-service
+     */
+    public static final String COURSE_ENROLLMENT_UPDATED = "course-enrollment-updated-topic";
 }

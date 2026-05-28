@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface FeedbackRepository extends MongoRepository<Feedback, String> {
-    Page<Feedback> findByUserId(String userId, Pageable pageable);
+    Page<Feedback> findByEmail(String email, Pageable pageable);
     Page<Feedback> findByTitleContainingIgnoreCase(String keyword, Pageable pageable);
     Page<Feedback> findByStatus(FeedbackStatus status, Pageable pageable);
     Page<Feedback> findByTitleContainingIgnoreCaseAndStatus(String keyword, FeedbackStatus status, Pageable pageable);

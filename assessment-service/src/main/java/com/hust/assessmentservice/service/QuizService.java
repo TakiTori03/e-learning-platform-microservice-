@@ -11,4 +11,6 @@ public interface QuizService {
     QuizResponse updateQuiz(String id, QuizRequest request);
     QuizResponse getQuizById(String id);
     List<QuizResponse> getQuizzesByTarget(String targetId, TargetType targetType);
+    void deleteQuiz(String id);
 }
+

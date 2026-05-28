@@ -13,6 +13,5 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @AllArgsConstructor
 public class FeedbackReply extends BaseDocument {
     private String feedbackId;
-    private String userId;
     private String content;
 }

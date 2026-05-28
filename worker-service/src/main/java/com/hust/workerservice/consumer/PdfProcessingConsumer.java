@@ -11,9 +11,17 @@ import com.hust.workerservice.dto.PythonParserResponse;
 import com.hust.workerservice.dto.ParsedPageDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.*;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.annotation.RetryableTopic;
+import org.springframework.kafka.annotation.DltHandler;
+import org.springframework.kafka.retrytopic.TopicSuffixingStrategy;
+import org.springframework.kafka.retrytopic.DltStrategy;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
@@ -31,13 +39,24 @@ public class PdfProcessingConsumer {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final RestTemplate restTemplate;
 
-    @org.springframework.beans.factory.annotation.Value("${app.parser.service-url:http://127.0.0.1:8090/api/v1/parser/extract}")
+    @Value("${app.parser.service-url:http://127.0.0.1:8090/api/v1/parser/extract}")
     private String parserServiceUrl;
 
+    @RetryableTopic(
+            attempts = "4",
+            backoff = @Backoff(delay = 5000, multiplier = 2.0),
+            topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
+            dltStrategy = DltStrategy.FAIL_ON_ERROR,
+            include = {
+                org.springframework.web.client.RestClientException.class,
+                java.io.IOException.class,
+                java.lang.RuntimeException.class
+            }
+    )
     @KafkaListener(topics = KafkaTopics.MEDIA_PROCESSING, groupId = "pdf-worker-group", concurrency = "1")
     @TrackPerformance(threshold = 30000, description = "GPU-Accelerated PDF OCR & Semantic Chunking Ingestion Pipeline")
     public void consume(MediaProcessingRequestEvent event) {
-        if (!"PDF".equalsIgnoreCase(event.getMediaType())) {
+        if (!"DOCUMENT".equalsIgnoreCase(event.getMediaType())) {
             return;
         }
         
@@ -95,6 +114,7 @@ public class PdfProcessingConsumer {
             LessonMediaReadyEvent readyEvent = LessonMediaReadyEvent.builder()
                     .lessonId(event.getLessonId())
                     .mediaId(event.getMediaId())
+                    .url(event.getFileUrl())
                     .fileSize(fileSize)
                     .build();
             
@@ -103,12 +123,31 @@ public class PdfProcessingConsumer {
 
         } catch (Exception e) {
             log.error("❌ Lỗi nghiêm trọng khi bóc tách PDF {}: {}", event.getMediaId(), e.getMessage(), e);
+            throw new RuntimeException("Failed to process PDF, triggering retry.", e);
         } finally {
             // Xóa sạch tệp tạm cục bộ để bảo vệ ổ cứng
             if (tempFile != null && tempFile.exists()) {
                 tempFile.delete();
                 log.info("🧹 Đã dọn dẹp file PDF tạm cục bộ.");
             }
+        }
+    }
+
+    @DltHandler
+    public void handleDlt(MediaProcessingRequestEvent event, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+        log.error("❌ [DLQ] Xử lý PDF cho lesson {} thất bại hoàn toàn sau tất cả các lần thử lại tại topic: {}", event.getLessonId(), topic);
+        try {
+
+            LessonMediaReadyEvent failedEvent = LessonMediaReadyEvent.builder()
+                    .lessonId(event.getLessonId())
+                    .mediaId(event.getMediaId())
+                    .url(null)
+                    .fileSize(-1L)
+                    .build();
+            kafkaTemplate.send(KafkaTopics.LESSON_MEDIA_READY, event.getLessonId(), failedEvent);
+            log.warn("📢 Đã gửi LessonMediaReadyEvent báo lỗi (status: FAILED) cho lesson {}", event.getLessonId());
+        } catch (Exception e) {
+            log.error("Lỗi khi xử lý DLQ Handler: {}", e.getMessage(), e);
         }
     }
 }

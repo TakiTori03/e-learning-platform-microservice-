@@ -26,4 +26,6 @@ public interface EnrollmentRepository extends MongoRepository<StudentEnrollment,
         "{ '$project': { 'courseId': '$_id', 'averageProgress': 1, 'totalEnrollments': 1, 'completedEnrollments': 1, '_id': 0 } }"
     })
     List<CourseProgressReportResponse> getUsersProgressAggregation();
+
+    long countByCourseId(String courseId);
 }

@@ -19,7 +19,7 @@ spring:
       idle-timeout: 300000              # 5 minutes
       connection-timeout: 20000         # 20 seconds
       max-lifetime: 1200000             # 20 minutes
-      leak-detection-threshold: 2000    # 2 seconds
+      leak-detection-threshold: 5000    # 5 seconds
       pool-name: HikariPool-IdentityService
 
   jpa:

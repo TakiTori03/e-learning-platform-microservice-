@@ -6,6 +6,7 @@ import {
   getMyWishlistCoursesEnriched 
 } from '../controllers/courseController.js';
 
+
 const router = Router();
 
 router.get('/search', searchCoursesEnriched);

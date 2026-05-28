@@ -17,6 +17,6 @@ router.get('/health', (req, res) => {
 router.use('/courses', courseRoutes);
 
 // Register Admin Analytics and Report routes
-router.use('/admin/reports', reportRoutes);
+router.use('/reports', reportRoutes);
 
 export default router;

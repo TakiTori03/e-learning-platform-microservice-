@@ -1,6 +1,7 @@
 package com.hust.identityservice.controller;
 
 import com.hust.commonlibrary.dto.ApiResponse;
+import com.hust.identityservice.dto.request.ChangePasswordRequest;
 import com.hust.identityservice.dto.request.InstructorRegistrationRequest;
 import com.hust.identityservice.dto.request.LoginRequest;
 import com.hust.identityservice.dto.request.UserRegistrationRequest;
@@ -64,7 +65,7 @@ public class AuthController {
 
     @PostMapping("/change-password")
     public ResponseEntity<ApiResponse<Void>> changePassword(
-            @RequestBody @Valid com.hust.identityservice.dto.request.ChangePasswordRequest request) {
+            @RequestBody @Valid ChangePasswordRequest request) {
         authService.changePassword(request);
         return ResponseEntity.ok(
                 ApiResponse.<Void>builder()

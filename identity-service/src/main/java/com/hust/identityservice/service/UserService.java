@@ -19,6 +19,8 @@ public interface UserService {
     
     void updateUserStatus(String userId, String status);
     
+    void approveInstructor(String userId);
+    
     UserResponse getUserById(String id);
     
     List<UserResponse> getUsersByIds(List<String> ids);
@@ -26,6 +28,8 @@ public interface UserService {
     void updateLastLogin(String userId);
     
     UserResponse updateMyProfile(UserUpdateRequest request);
+
+    List<UserResponse> getInstructorsSelect();
     
     ListResponse<UserResponse> getAllUsers(Pageable pageable);
 }

@@ -42,6 +42,11 @@ public class MinioStorageStrategy implements StorageStrategy {
         ObjectMetadata metadata = new ObjectMetadata();
         metadata.setContentType(file.getContentType());
         metadata.setContentLength(file.getSize());
+        
+        // Cấu hình để trình duyệt xem trực tiếp (Inline Preview) thay vì tải về
+        if (file.getContentType() != null && file.getContentType().equals("application/pdf")) {
+            metadata.setContentDisposition("inline; filename=\"" + file.getOriginalFilename() + "\"");
+        }
 
         s3Client.putObject(new PutObjectRequest(bucketName, fileName, file.getInputStream(), metadata)
                 .withCannedAcl(CannedAccessControlList.PublicRead));

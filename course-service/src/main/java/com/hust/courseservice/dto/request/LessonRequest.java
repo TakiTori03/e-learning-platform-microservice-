@@ -12,8 +12,7 @@ import lombok.NoArgsConstructor;
 public class LessonRequest {
     private String name;
     private String description;
-    private String content; 
-    private Double videoLength;
+    private String content;
     private String access;
     private String type; 
     private Integer position;

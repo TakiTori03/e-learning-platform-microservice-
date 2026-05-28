@@ -68,4 +68,28 @@ public class QuizController {
                         .build()
         );
     }
+
+    @GetMapping("/course/{courseId}")
+    public ResponseEntity<ApiResponse<List<QuizResponse>>> getQuizzesByCourse(@PathVariable String courseId) {
+        List<QuizResponse> response = quizService.getQuizzesByTarget(courseId, TargetType.COURSE);
+        return ResponseEntity.ok(
+                ApiResponse.<List<QuizResponse>>builder()
+                        .success(true)
+                        .payload(response)
+                        .build()
+        );
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('INSTRUCTOR')")
+    public ResponseEntity<ApiResponse<Void>> deleteQuiz(@PathVariable String id) {
+        quizService.deleteQuiz(id);
+        return ResponseEntity.ok(
+                ApiResponse.<Void>builder()
+                        .success(true)
+                        .message("Quiz deleted successfully")
+                        .build()
+        );
+    }
 }
+

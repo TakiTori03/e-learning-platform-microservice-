@@ -5,6 +5,9 @@ import com.hust.commonlibrary.constant.RedisPrefixConstants;
 import com.hust.commonlibrary.dto.ListResponse;
 import com.hust.commonlibrary.exception.payload.ResourceNotFoundException;
 import com.hust.commonlibrary.utils.SecurityUtils;
+import com.hust.courseservice.entity.enums.CourseAccess;
+import org.springframework.data.mongodb.core.aggregation.Aggregation;
+import org.springframework.data.mongodb.core.aggregation.AggregationResults;
 import org.springframework.security.access.AccessDeniedException;
 
 import com.hust.commonlibrary.service.RedisService;
@@ -61,6 +64,41 @@ public class CourseServiceImpl implements CourseService {
     private final ActionLogRepository actionLogRepository;
     private final RedisService redisService;
     private final Random random = new Random();
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Long> countByCategories(List<String> categoryIds) {
+        if (categoryIds == null || categoryIds.isEmpty()) {
+            return Map.of();
+        }
+        // Using MongoTemplate aggregation for high performance
+        Aggregation aggregation =
+            Aggregation.newAggregation(
+                Aggregation.match(
+                    org.springframework.data.mongodb.core.query.Criteria.where("category").in(
+                        categoryIds.stream().map(org.bson.types.ObjectId::new).toList()
+                    )
+                ),
+                Aggregation.group("category").count().as("count")
+            );
+
+        AggregationResults<Map> results =
+            mongoTemplate.aggregate(aggregation, Course.class, Map.class);
+
+        Map<String, Long> countMap = new HashMap<>();
+        // Initialize all requested categoryIds to 0
+        for (String id : categoryIds) {
+            countMap.put(id, 0L);
+        }
+        for (Map<?, ?> row : results.getMappedResults()) {
+            Object idObj = row.get("_id");
+            Object countObj = row.get("count");
+            if (idObj != null && countObj != null) {
+                countMap.put(idObj.toString(), ((Number) countObj).longValue());
+            }
+        }
+        return countMap;
+    }
 
     private void updateCourseOwnerCache(Course course) {
         try {
@@ -213,14 +251,21 @@ public class CourseServiceImpl implements CourseService {
             List<String> topics,
             List<String> levels,
             List<String> prices,
+            Double rating,
+            CourseStatus status,
             Pageable pageable
     ) {
         Query mongoQuery = new Query();
         List<Criteria> criteriaList = new ArrayList<>();
 
-        // 1. Search Query
+        // 1. Search Query (Partial-matching regex for better UX)
         if (q != null && !q.trim().isEmpty()) {
-            mongoQuery.addCriteria(TextCriteria.forDefaultLanguage().matching(q));
+            criteriaList.add(new Criteria().orOperator(
+                    Criteria.where("name").regex(q, "i"),
+                    Criteria.where("subTitle").regex(q, "i"),
+                    Criteria.where("code").regex(q, "i"),
+                    Criteria.where("description").regex(q, "i")
+            ));
         }
 
         // 2. Authors
@@ -255,13 +300,15 @@ public class CourseServiceImpl implements CourseService {
             }
         }
 
-//        // 6. Status (Only show PUBLISHED to normal users, unless status is specified)
-//        // Note: In a real scenario, you'd check roles here or have separate methods
-//        // For now, let's add a condition if status is not explicitly requested
-//        if (mongoQuery.getCriteria().stream().noneMatch(c -> c.getKey().equals("status"))) {
-//            // criteriaList.add(Criteria.where("status").is(com.hust.courseservice.entity.enums.CourseStatus.PUBLISHED));
-//            // Let's keep it flexible for now but aware of the need
-//        }
+        // 5b. Rating (avgRatingStars >= rating)
+        if (rating != null) {
+            criteriaList.add(Criteria.where("avgRatingStars").gte(rating));
+        }
+
+        // 6. Enforce status
+        if (status != null) {
+            criteriaList.add(Criteria.where("status").is(status));
+        }
 
         if (!criteriaList.isEmpty()) {
             mongoQuery.addCriteria(new Criteria().andOperator(criteriaList.toArray(new Criteria[0])));
@@ -317,25 +364,22 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional
-    public void updateStatus(String id) {
+    @CustomCacheEvict(key = "'course:detail:' + #id")
+    public void updateStatus(String id, String status, String access) {
         Course course = courseRepository.findById(id).orElseThrow(() -> 
                 new ResourceNotFoundException(AppConstants.Resource_Constants.COURSE, AppConstants.Field_Constants.ID, id));
         
         validateCourseOwnership(course);
 
-        String oldStatus = course.getStatus().name();
-        if (course.getStatus() == CourseStatus.PUBLISHED) {
-            course.setStatus(CourseStatus.ARCHIVED);
-        } else {
-            course.setStatus(CourseStatus.PUBLISHED);
+        if (status != null && !status.trim().isEmpty()) {
+            course.setStatus(CourseStatus.valueOf(status.trim().toUpperCase()));
+        }
+        if (access != null && !access.trim().isEmpty()) {
+            course.setAccess(CourseAccess.valueOf(access.trim().toUpperCase()));
         }
         courseRepository.save(course);
-
-        // Log the action
-        logAction(course.getId(), 
-              ActionLogType.UPDATE,
-                 "Course status updated from " + oldStatus + " to " + course.getStatus().name(),
-                 FunctionType.COURSE);
+        
+        logAction(course.getId(), ActionLogType.UPDATE, "Course status/access updated by instructor", FunctionType.COURSE);
     }
 
     @Override
@@ -387,94 +431,19 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional
-    public CourseResponse adminCreate(CourseRequest request, String instructorId) {
-        Category category = null;
-        if (request.getCategoryId() != null) {
-            category = categoryRepository.findById(request.getCategoryId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            AppConstants.Resource_Constants.CATEGORY,
-                            AppConstants.Field_Constants.ID,
-                            request.getCategoryId()));
-        }
-
-        Course course = courseMapper.requestToEntity(request);
-        course.setInstructorId(instructorId != null ? instructorId : SecurityUtils.getCurrentUserIdOrThrow());
-        course.setCategory(category);
-        course.setCourseSlug(toSlug(request.getName()) + "-" + random.nextInt(1000));
-        course.setCode("CRS-" + System.currentTimeMillis() % 10000);
-
-        course = courseRepository.save(course);
-        
-        // Synchronize permanent ownership mapping via Admin
-        updateCourseOwnerCache(course);
-        
-        return courseMapper.entityToResponse(course);
-    }
-
-    @Override
-    @Transactional
-    public CourseResponse adminUpdate(String id, CourseRequest request, String instructorId) {
-        Course course = courseRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        AppConstants.Resource_Constants.COURSE,
-                        AppConstants.Field_Constants.ID,
-                        id));
-
-        Category category = null;
-        if (request.getCategoryId() != null) {
-            category = categoryRepository.findById(request.getCategoryId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            AppConstants.Resource_Constants.CATEGORY,
-                            AppConstants.Field_Constants.ID,
-                            request.getCategoryId()));
-        }
-
-        courseMapper.partialUpdate(course, request);
-        course.setCategory(category);
-        if (instructorId != null) {
-            course.setInstructorId(instructorId);
-        }
-        if (request.getName() != null) {
-            course.setCourseSlug(toSlug(request.getName()) + "-" + random.nextInt(1000));
-        }
-
-        course = courseRepository.save(course);
-        
-        // Synchronize permanent ownership mapping on Admin updates
-        updateCourseOwnerCache(course);
-        
-        return courseMapper.entityToResponse(course);
-    }
-
-    @Override
-    @Transactional
-    public void adminDelete(List<String> ids) {
-        if (ids == null || ids.isEmpty()) return;
-        courseRepository.deleteAllById(ids);
-        
-        // Evict permanent mappings via Admin deletion
-        for (String id : ids) {
-            deleteCourseOwnerCache(id);
-        }
-    }
-
-    @Override
-    @Transactional
-    public void adminUpdateStatus(String id) {
+    @CustomCacheEvict(key = "'course:detail:' + #id")
+    public void adminUpdateStatus(String id, String status, String access) {
         Course course = courseRepository.findById(id).orElseThrow(() -> 
                 new ResourceNotFoundException(AppConstants.Resource_Constants.COURSE, AppConstants.Field_Constants.ID, id));
-        
-        String oldStatus = course.getStatus().name();
-        if (course.getStatus() == CourseStatus.PUBLISHED) {
-            course.setStatus(CourseStatus.ARCHIVED);
-        } else {
-            course.setStatus(CourseStatus.PUBLISHED);
+
+        if (status != null && !status.trim().isEmpty()) {
+            course.setStatus(CourseStatus.valueOf(status.trim().toUpperCase()));
+        }
+        if (access != null && !access.trim().isEmpty()) {
+            course.setAccess(CourseAccess.valueOf(access.trim().toUpperCase()));
         }
         courseRepository.save(course);
-
-        logAction(course.getId(), 
-              ActionLogType.UPDATE,
-                 "Course status updated from " + oldStatus + " to " + course.getStatus().name(),
-                 FunctionType.COURSE);
+        
+        logAction(course.getId(), ActionLogType.UPDATE, "Course status/access updated by admin", FunctionType.COURSE);
     }
 }

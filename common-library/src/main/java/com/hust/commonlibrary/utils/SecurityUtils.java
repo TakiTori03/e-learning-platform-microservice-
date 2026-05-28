@@ -34,4 +34,29 @@ public class SecurityUtils {
         }
         return Optional.empty();
     }
+
+    /**
+     * Kiểm tra xem User hiện tại có sở hữu một trong các role được chỉ định không.
+     */
+    public static boolean hasAnyRole(String... roles) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getAuthorities() == null) {
+            return false;
+        }
+        for (String role : roles) {
+            boolean hasRole = authentication.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals(role) || a.getAuthority().equals("ROLE_" + role));
+            if (hasRole) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Kiểm tra xem User hiện tại có phải là ADMIN không.
+     */
+    public static boolean isAdmin() {
+        return hasAnyRole("ADMIN");
+    }
 }

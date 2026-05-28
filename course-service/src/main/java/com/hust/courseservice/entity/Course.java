@@ -62,4 +62,16 @@ public class Course extends BaseDocument {
     private List<String> willLearns;
 
     private List<String> tags;
+
+    // === Denormalized Statistics (Event-Driven Sync from interaction-service & learning-service) ===
+
+    @Builder.Default
+    @Indexed
+    private Double avgRatingStars = 0.0;
+
+    @Builder.Default
+    private Integer studentCount = 0;
+
+    @Builder.Default
+    private Integer numOfReviews = 0;
 }

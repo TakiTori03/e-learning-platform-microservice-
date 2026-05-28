@@ -96,3 +96,67 @@ export const getMyWishlistCoursesEnriched = catchAsync(
     return ResponseHelper.success(res, courses);
   }
 );
+
+/**
+ * Searches and paginates courses for the authenticated instructor (only their own courses).
+ */
+export const getInstructorCoursesEnriched = catchAsync(
+  async (req: EnhancedRequest, res: Response) => {
+    const userId = req.userId;
+    const userRole = req.userRole;
+
+    console.log(
+      `BFF (Node.js): Executing instructor course search for User: ${userId || "UNKNOWN"} (Role: ${userRole})`,
+    );
+
+    if (!userId || userRole !== "INSTRUCTOR") {
+      return ResponseHelper.error(res, "Access denied: Instructor role required.", 403);
+    }
+
+    const query = { ...req.query };
+
+    const enrichedSearch = await courseService.searchEnrichedCourses(
+      query as Record<string, unknown>,
+      userId,
+      "/course/courses/instructor/search"
+    );
+
+    if (!enrichedSearch) {
+      return ResponseHelper.error(res, "Failed to retrieve instructor courses.", 500);
+    }
+
+    return ResponseHelper.success(res, enrichedSearch);
+  }
+);
+
+/**
+ * Searches and paginates all system courses for the authenticated Admin.
+ */
+export const getAdminCoursesEnriched = catchAsync(
+  async (req: EnhancedRequest, res: Response) => {
+    const userId = req.userId;
+    const userRole = req.userRole;
+
+    console.log(
+      `BFF (Node.js): Executing admin course search for User: ${userId || "UNKNOWN"} (Role: ${userRole})`,
+    );
+
+    if (!userId || userRole !== "ADMIN") {
+      return ResponseHelper.error(res, "Access denied: Admin role required.", 403);
+    }
+
+    const query = { ...req.query };
+
+    const enrichedSearch = await courseService.searchEnrichedCourses(
+      query as Record<string, unknown>,
+      userId,
+      "/course/courses/admin/search"
+    );
+
+    if (!enrichedSearch) {
+      return ResponseHelper.error(res, "Failed to retrieve admin courses.", 500);
+    }
+
+    return ResponseHelper.success(res, enrichedSearch);
+  }
+);

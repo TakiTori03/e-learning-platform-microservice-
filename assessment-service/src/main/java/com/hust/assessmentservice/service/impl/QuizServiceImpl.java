@@ -70,4 +70,15 @@ public class QuizServiceImpl implements QuizService {
                 .map(List::of)
                 .orElse(List.of());
     }
+
+    @Override
+    @Transactional
+    @CheckCourseOwner(domainId = "#id", resolver = "quizResolver")
+    public void deleteQuiz(String id) {
+        log.info("Deleting Quiz {}", id);
+        Quiz quiz = quizRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Quiz not found with id: " + id));
+        quizRepository.delete(quiz);
+    }
 }
+

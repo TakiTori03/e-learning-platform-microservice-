@@ -18,7 +18,8 @@ import java.util.List;
 @AllArgsConstructor
 public class FeedbackResponse extends TimeResponse {
     private String id;
-    private String userId;
+    private String name;
+    private String email;
 
     private FeedbackType type;
     private String title;

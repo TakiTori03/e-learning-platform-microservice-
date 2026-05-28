@@ -48,6 +48,12 @@
             <groupId>com.hust</groupId>
             <artifactId>common-library</artifactId>
         </dependency>
+
+        <!-- Kafka Support -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

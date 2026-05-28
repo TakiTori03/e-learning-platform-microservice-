@@ -45,20 +45,6 @@ public class MediaController {
         );
     }
 
-    /**
-     * Tra cứu thông tin media được liên kết với một bài học cụ thể (lessonId).
-     * Phục vụ đắc lực luồng truy vấn đa hình khi học viên học bài.
-     */
-    @GetMapping("/lessons/{lessonId}")
-    public ResponseEntity<ApiResponse<MediaResponse>> getMediaByLessonId(@PathVariable String lessonId) {
-        return ResponseEntity.ok(
-                ApiResponse.<MediaResponse>builder()
-                        .success(true)
-                        .payload(mediaMapper.entityToResponse(mediaService.getByReferenceId(lessonId)))
-                        .build()
-        );
-    }
-
     // ======================== UPLOAD ========================
 
     @PostMapping("/upload/image")
@@ -68,17 +54,6 @@ public class MediaController {
                 ApiResponse.<MediaResponse>builder()
                         .success(true)
                         .payload(mediaMapper.entityToResponse(mediaService.upload(file, MediaType.IMAGE)))
-                        .build()
-        );
-    }
-
-    @PostMapping("/upload/pdf")
-    public ResponseEntity<ApiResponse<MediaResponse>> uploadPdf(
-            @RequestParam("file") MultipartFile file) throws IOException {
-        return ResponseEntity.ok(
-                ApiResponse.<MediaResponse>builder()
-                        .success(true)
-                        .payload(mediaMapper.entityToResponse(mediaService.upload(file, MediaType.PDF)))
                         .build()
         );
     }
@@ -143,7 +118,7 @@ public class MediaController {
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('INSTRUCTOR', 'ADMIN')")
-    public ResponseEntity<ApiResponse<String>> deleteMedia(@PathVariable String id) throws IOException {
+    public ResponseEntity<ApiResponse<String>> deleteMedia(@PathVariable String id)  {
         mediaService.deleteMedia(id);
         return ResponseEntity.ok(
                 ApiResponse.<String>builder()
@@ -166,7 +141,12 @@ public class MediaController {
         }
 
         String userId = SecurityUtils.getCurrentUserIdOrThrow();
-        boolean isAllowed = mediaService.checkLessonAccess(userId, lessonId);
+        
+        boolean isAdmin = SecurityUtils.isAdmin();
+        
+        boolean isOwner = userId.equals(media.getOwnerId());
+        
+        boolean isAllowed = isAdmin || isOwner || mediaService.checkLessonAccess(userId, lessonId);
         
         if (!isAllowed) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();

@@ -38,7 +38,7 @@ public class MediaService {
             throw new IllegalArgumentException("Phát hiện nỗ lực tải video trực tiếp qua Gateway! Vui lòng sử dụng luồng tối ưu Presigned URL để tránh quá tải RAM.");
         }
         
-        // 1. Initial save with READY status for normal files (images, PDFs)
+
         Media media = Media.builder()
                 .fileName(file.getOriginalFilename())
                 .fileType(type)
@@ -46,7 +46,7 @@ public class MediaService {
                 .fileSize(file.getSize())
                 .provider(StorageProvider.S3)
                 .ownerId(getUserId())
-                .status(Media.MediaStatus.READY)
+                .status(type == MediaType.IMAGE ? Media.MediaStatus.READY : Media.MediaStatus.PENDING)
                 .build();
         
         media = mediaRepository.save(media);
@@ -83,7 +83,7 @@ public class MediaService {
             }
         }
         
-        // 2. Nếu là video, xóa raw file + thumbnail
+        // 2. Nếu là video, xóa raw file
         if (media.getRawFileKey() != null) {
             try {
                 storageStrategy.deleteFile(media.getRawFileKey());
@@ -91,14 +91,7 @@ public class MediaService {
                 log.debug("Failed to delete raw video key: {}", e.getMessage());
             }
         }
-        if (media.getThumbnailUrl() != null) {
-            try {
-                storageStrategy.deleteFile(media.getThumbnailUrl());
-            } catch (Exception e) {
-                log.debug("Failed to delete thumbnail URL: {}", e.getMessage());
-            }
-        }
-        
+
         // 3. Xóa record trong MongoDB
         mediaRepository.delete(media);
         log.info("🗑️ Media {} deleted successfully.", id);
@@ -106,11 +99,6 @@ public class MediaService {
 
     public Optional<Media> findByHlsFolderName(String hlsFolderName) {
         return mediaRepository.findByHlsFolderName(hlsFolderName);
-    }
-
-    public Media getByReferenceId(String referenceId) {
-        return mediaRepository.findByReferenceId(referenceId)
-                .orElseThrow(() -> new ResourceNotFoundException("Media", "referenceId", referenceId));
     }
 
     public byte[] getVideoKey(String folderName) throws IOException {
@@ -168,13 +156,13 @@ public class MediaService {
             eventPublisher.publishEvent(new com.hust.mediaservice.event.MediaProcessingRequestSpringEvent(this, event));
             log.info("📢 Published internal MediaProcessingRequestSpringEvent for VIDEO media {}", mediaId);
             
-        } else if (media.getFileType() == MediaType.PDF) {
+        } else if (media.getFileType() == MediaType.DOCUMENT) {
             MediaProcessingRequestEvent event = MediaProcessingRequestEvent.builder()
                     .mediaId(mediaId)
                     .fileUrl(media.getUrl())
                     .courseId(courseId)
                     .lessonId(lessonId)
-                    .mediaType(MediaType.PDF.name())
+                    .mediaType(MediaType.DOCUMENT.name())
                     .build();
             eventPublisher.publishEvent(new com.hust.mediaservice.event.MediaProcessingRequestSpringEvent(this, event));
             log.info("📢 Published internal MediaProcessingRequestSpringEvent for PDF media {}", mediaId);

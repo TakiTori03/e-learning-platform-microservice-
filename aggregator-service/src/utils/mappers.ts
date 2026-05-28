@@ -1,6 +1,5 @@
 import {
   CourseResponse,
-  RatingResponse,
   InstructorResponse,
   CourseCardDTO,
   CourseDetailDTO,
@@ -15,19 +14,17 @@ export class CourseMapper {
   static toDetail(
     course: CourseResponse,
     instructor: InstructorResponse | null,
-    rating: RatingResponse | null,
-    studentCount: number,
     isBought: boolean,
     progress: number
   ): CourseDetailDTO {
     return {
       ...course,
       instructor,
-      studentCount,
+      studentCount: course.studentCount ?? 0,
       isBought,
       progress,
-      avgRatingStars: rating?.avgRatingStars ?? 0.0,
-      numOfReviews: rating?.numOfReviews ?? 0,
+      avgRatingStars: course.avgRatingStars ?? 0.0,
+      numOfReviews: course.numOfReviews ?? 0,
     };
   }
 
@@ -38,8 +35,6 @@ export class CourseMapper {
   static toCard(
     course: CourseResponse,
     instructor: InstructorResponse | null,
-    rating: RatingResponse | null,
-    studentCount: number,
     isBought: boolean,
     progress: number
   ): CourseCardDTO {
@@ -53,6 +48,7 @@ export class CourseMapper {
       finalPrice: course.finalPrice ?? course.price ?? 0,
       access: course.access || "FREE",
       level: course.level || "ALL",
+      status: course.status,
       instructorId: course.instructorId || "",
       instructor: instructor
         ? {
@@ -65,9 +61,9 @@ export class CourseMapper {
       category: course.category
         ? { id: course.category.id, name: course.category.name }
         : null,
-      studentCount,
-      avgRatingStars: rating?.avgRatingStars ?? 0.0,
-      numOfReviews: rating?.numOfReviews ?? 0,
+      studentCount: course.studentCount ?? 0,
+      avgRatingStars: course.avgRatingStars ?? 0.0,
+      numOfReviews: course.numOfReviews ?? 0,
       isBought,
       progress,
     };

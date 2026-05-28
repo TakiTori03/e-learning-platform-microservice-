@@ -16,8 +16,10 @@ import com.hust.learningservice.repository.EnrollmentRepository;
 import com.hust.learningservice.repository.ProgressRepository;
 import com.hust.learningservice.repository.CourseNoteRepository;
 import com.hust.learningservice.service.LearningService;
+import com.hust.commonlibrary.event.CourseEnrollmentUpdatedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +40,7 @@ public class LearningServiceImpl implements LearningService {
     private final NoteMapper noteMapper;
     private final ProgressMapper progressMapper;
     private final LessonProgressMapper lessonProgressMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -191,6 +194,11 @@ public class LearningServiceImpl implements LearningService {
         if (!newEnrollments.isEmpty()) {
             enrollmentRepository.saveAll(newEnrollments);
             log.info("Bulk enrolled user {} in {} new courses for Order {}", userId, newEnrollments.size(), orderId);
+
+            // Phát sự kiện cập nhật số lượng học viên lên Kafka cho từng khóa học mới đăng ký
+            for (StudentEnrollment enrollment : newEnrollments) {
+                publishEnrollmentStats(enrollment.getCourseId());
+            }
         }
     }
 
@@ -270,5 +278,25 @@ public class LearningServiceImpl implements LearningService {
 
         // 3. Invoke core track progress to save record and trigger overall course percent recalculation!
         trackProgress(userId, syncRequest);
+    }
+
+    /**
+     * Đếm tổng số học viên đã đăng ký khóa học rồi phát sự kiện Spring local.
+     * EnrollmentEventListener sẽ lắng nghe sự kiện này và gửi lên Kafka sau khi commit transaction.
+     */
+    private void publishEnrollmentStats(String courseId) {
+        try {
+            long count = enrollmentRepository.countByCourseId(courseId);
+
+            CourseEnrollmentUpdatedEvent event = CourseEnrollmentUpdatedEvent.builder()
+                    .courseId(courseId)
+                    .studentCount(count)
+                    .build();
+
+            eventPublisher.publishEvent(event);
+            log.info("📤 Published local CourseEnrollmentUpdatedEvent: courseId={}, studentCount={}", courseId, count);
+        } catch (Exception e) {
+            log.error("⚠️ Failed to publish local enrollment stats for course {}: {}", courseId, e.getMessage());
+        }
     }
 }

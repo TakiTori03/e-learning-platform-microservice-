@@ -10,10 +10,10 @@ import java.time.Instant;
 @Builder
 public class AssessmentSubmittedEvent {
     private String submissionId;
-    private String assessmentId; // assignmentId or quizId
-    private String assessmentType; // "ASSIGNMENT" or "QUIZ"
+    private String assessmentId;
+    private String assessmentType;
     private String userId;
-    private String targetId; // lessonId
-    private String targetType; // "LESSON"
+    private String targetId;
+    private String targetType;
     private Instant submittedAt;
 }

@@ -15,7 +15,6 @@ public class LessonMediaReadyEvent {
     private String hlsFolderName;
     private String transcriptUrl;
     private String url;
-    private String thumbnailUrl;
     private Long fileSize;
     private Double duration;
 }

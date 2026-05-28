@@ -43,4 +43,9 @@ public class CourseResponse extends TimeResponse {
     private Integer sectionCount;      
     private Integer lessonCount;      
     private Double totalVideosLength;  
+
+    // Denormalized Statistics (synced via Kafka events)
+    private Double avgRatingStars;
+    private Integer studentCount;
+    private Integer numOfReviews;
 }

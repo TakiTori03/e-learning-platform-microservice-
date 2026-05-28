@@ -20,7 +20,6 @@ public class Media extends BaseDocument {
     private String contentType;
     private Long fileSize;
     private String url;
-    private String thumbnailUrl;
     private StorageProvider provider;
     private String ownerId;
     private String referenceId;

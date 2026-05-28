@@ -31,6 +31,21 @@ public interface OrderRepository extends JpaRepository<Order, String> {
            nativeQuery = true)
     List<RevenueProjection> getRevenuesByMonth(@Param("status") String status);
 
+    @Query(value = "SELECT TO_CHAR(created_at, :format) as period, SUM(total_price) as revenue " +
+                   "FROM orders " +
+                   "WHERE status = :status " +
+                   "  AND (CAST(:startDate AS VARCHAR) IS NULL OR CAST(:startDate AS VARCHAR) = '' OR created_at >= CAST(:startDate AS TIMESTAMP)) " +
+                   "  AND (CAST(:endDate AS VARCHAR) IS NULL OR CAST(:endDate AS VARCHAR) = '' OR created_at <= CAST(:endDate AS TIMESTAMP)) " +
+                   "GROUP BY 1 " +
+                   "ORDER BY period", 
+           nativeQuery = true)
+    List<RevenueProjection> getRevenuesDynamic(
+        @Param("status") String status,
+        @Param("startDate") String startDate,
+        @Param("endDate") String endDate,
+        @Param("format") String format
+    );
+
     // Báo cáo doanh số bán khóa học (Native Query PostgreSQL)
     @Query(value = "SELECT oi.course_id as courseId, oi.name as courseName, COUNT(o.id) as sales, SUM(oi.final_price) as revenue " +
                    "FROM orders o JOIN order_items oi ON o.id = oi.order_id " +

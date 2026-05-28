@@ -60,10 +60,11 @@ public class VideoProcessingService {
 
         String m3u8Output = new File(outputDir.toFile(), "playlist.m3u8").getAbsolutePath();
 
+        // 💡 TỐI ƯU 1: Thay đổi mức log thành "error" để chặn đứng đống log Late SEI spam sập hệ thống
         ProcessBuilder pb = new ProcessBuilder(
                 ffmpegPath,
                 "-nostdin",
-                "-loglevel", "warning",
+                "-loglevel", "error",
                 "-i", inputFile.getAbsolutePath(),
                 "-profile:v", "main",
                 "-level", "3.0",
@@ -75,12 +76,23 @@ public class VideoProcessingService {
                 m3u8Output
         );
 
-        pb.inheritIO();
+        // 💡 TỐI ƯU 2: Gộp ErrorStream vào InputStream để quản lý tập trung
+        pb.redirectErrorStream(true);
         Process process = pb.start();
-        
+
+        // 💡 TỐI ƯU 3: Đọc sạch (consume) bộ đệm đầu ra ngầm.
+        // Việc này giúp giải phóng RAM/OS Buffer liên tục, đảm bảo FFmpeg KHÔNG BAO GIỜ bị đóng băng giữa chừng.
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(process.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                // Log này thường sẽ trống vì ta đã đặt mức error, nếu có lỗi nghiêm trọng nó sẽ in ra đây
+                log.error("[FFmpeg Transcode Error] {}", line);
+            }
+        }
+
         // Hard 15-minute timeout gate to prevent infinite loops and zombie processes
         boolean completed = process.waitFor(15, TimeUnit.MINUTES);
-        
+
         if (!completed) {
             log.error("❌ FFmpeg HLS Transcoding HANGED. Exceeded 15-minute limit! Force killing process.");
             process.destroyForcibly();
@@ -96,61 +108,35 @@ public class VideoProcessingService {
         return "hls/" + outputDirName + "/playlist.m3u8";
     }
 
-    public String extractThumbnail(File inputFile, String outputDirName) throws IOException, InterruptedException {
-        Path outputDir = Paths.get(baseStoragePath, "hls", outputDirName);
-        if (!Files.exists(outputDir)) Files.createDirectories(outputDir);
-        
-        String thumbnailName = "thumbnail.jpg";
-        Path outputPath = outputDir.resolve(thumbnailName);
-
-        ProcessBuilder pb = new ProcessBuilder(
-                ffmpegPath,
-                "-nostdin",
-                "-loglevel", "warning",
-                "-i", inputFile.getAbsolutePath(),
-                "-ss", "00:00:05", // Chụp tại giây thứ 5
-                "-vframes", "1",   // Chỉ lấy 1 khung hình
-                "-q:v", "2",       // Chất lượng ảnh tốt
-                "-update", "1",    // Chỉ định xuất ra một ảnh duy nhất
-                outputPath.toAbsolutePath().toString()
-        );
-
-        pb.inheritIO();
-        Process process = pb.start();
-        
-        // Thumbnails should be instant (max 1 min limit)
-        boolean completed = process.waitFor(1, TimeUnit.MINUTES);
-        if (!completed) {
-            log.warn("⚠️ FFmpeg thumbnail extraction took too long. Force destroying.");
-            process.destroyForcibly();
-        }
-
-        return "hls/" + outputDirName + "/" + thumbnailName;
-    }
-
     public String extractAudio(File inputFile, String outputDirName) throws IOException, InterruptedException {
         Path outputDir = Paths.get(baseStoragePath, "hls", outputDirName);
         if (!Files.exists(outputDir)) Files.createDirectories(outputDir);
-        
-        String audioName = "audio.mp3";
+
+        // Thay đổi đuôi file trực tiếp sang wav
+        String audioName = "audio.wav";
         Path outputPath = outputDir.resolve(audioName);
 
         ProcessBuilder pb = new ProcessBuilder(
                 ffmpegPath,
                 "-nostdin",
-                "-loglevel", "warning",
+                "-loglevel", "error", // Ép FFmpeg câm lặng, chỉ báo lỗi nghiêm trọng, xử lý triệt để đống log Late SEI rác
                 "-i", inputFile.getAbsolutePath(),
                 "-vn",
-                "-acodec", "libmp3lame",
-                "-ar", "16000",
-                "-ac", "1",
-                "-b:a", "32k",
+                "-acodec", "pcm_s16le", // Trích xuất trực tiếp sang PCM chuỗi gốc 16-bit
+                "-ar", "16000",          // Đưa về tần số 16kHz
+                "-ac", "1",              // Chuyển về hệ Mono
                 outputPath.toAbsolutePath().toString()
         );
 
-        pb.inheritIO();
+        // Không dùng pb.inheritIO() để tránh block luồng hệ thống Java
+        pb.redirectErrorStream(true);
         Process process = pb.start();
-        
+
+        // Đọc sạch dữ liệu trong buffer ra để tránh treo tiến trình
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(process.getInputStream()))) {
+            while (reader.readLine() != null) { /* Do nothing - consume buffer */ }
+        }
+
         boolean completed = process.waitFor(5, TimeUnit.MINUTES);
         if (!completed) {
             log.error("❌ FFmpeg audio extraction timed out.");

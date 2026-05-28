@@ -3,6 +3,7 @@ package com.hust.identityservice.service.impl;
 import com.hust.commonlibrary.constant.AppConstants;
 import com.hust.commonlibrary.exception.AppException;
 import com.hust.commonlibrary.exception.ErrorCode;
+import com.hust.commonlibrary.utils.SecurityUtils;
 import com.hust.identityservice.dto.request.ChangePasswordRequest;
 import com.hust.identityservice.dto.request.InstructorRegistrationRequest;
 import com.hust.identityservice.dto.request.LoginRequest;
@@ -45,11 +46,16 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public UserResponse login(LoginRequest request, HttpServletResponse response) {
         log.info("Processing login for email: {}", request.getEmail());
-        AccessTokenResponse tokenResponse = authRepository.login(request.getEmail(), request.getPassword());
-        setTokenCookies(response, tokenResponse);
-
+        
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new AppException(ErrorCode.ACCOUNT_NOT_ACTIVED);
+        }
+
+        AccessTokenResponse tokenResponse = authRepository.login(request.getEmail(), request.getPassword());
+        setTokenCookies(response, tokenResponse);
 
         // Cập nhật thời gian đăng nhập cuối
         user.setLastLogin(java.time.Instant.now());
@@ -97,11 +103,12 @@ public class AuthServiceImpl implements AuthService {
         String keycloakUserId = createKeycloakUser(request);
 
         try {
-            // QUAN TRỌNG: KHÔNG gán Role Instructor tại đây (Đợi Admin duyệt)
+            // QUAN TRỌNG: KHÔNG gán Role Instructor tại đây trên Keycloak (Đợi Admin duyệt)
             User user = userMapper.toUser(request);
             user.setId(UUID.fromString(keycloakUserId));
             user.setAvatar(AppConstants.DEFAULT_AVATAR);
             user.setStatus(UserStatus.PENDING); // Đăng ký mới chờ duyệt
+            user.setRole(AppConstants.Role_Constants.ROLE_INSTRUCTOR); // Thiết lập vai trò dự kiến trong DB
 
             user = userRepository.save(user);
             log.info("BFF: Instructor candidate registered and pending verification: {}", user.getEmail());
@@ -149,7 +156,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void changePassword(ChangePasswordRequest request) {
-        String userId = com.hust.commonlibrary.utils.SecurityUtils.getCurrentUserIdOrThrow();
+        String userId = SecurityUtils.getCurrentUserIdOrThrow();
         log.info("Request password change for userId: {}", userId);
         
         try {

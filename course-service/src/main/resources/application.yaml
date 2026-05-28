@@ -11,6 +11,7 @@ spring:
   data:
     mongodb:
       uri: ${MONGODB_URI:mongodb://localhost:27017/course_db?maxPoolSize=50&minPoolSize=10&maxIdleTimeMS=300000&waitQueueTimeoutMS=10000}
+      auto-index-creation: true
 
   security:
     oauth2:
@@ -29,6 +30,14 @@ spring:
       properties:
         enable.idempotence: true
         spring.json.type.mapping: lessonMaterialUpdatedEvent:com.hust.commonlibrary.event.LessonMaterialUpdatedEvent
+    consumer:
+      group-id: course-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.hust.commonlibrary.event"
+        spring.json.type.mapping: courseReviewUpdatedEvent:com.hust.commonlibrary.event.CourseReviewUpdatedEvent,courseEnrollmentUpdatedEvent:com.hust.commonlibrary.event.CourseEnrollmentUpdatedEvent,lessonMediaReadyEvent:com.hust.commonlibrary.event.LessonMediaReadyEvent
 
 eureka:
   instance:

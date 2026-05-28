@@ -18,6 +18,8 @@ public interface CourseRepository extends MongoRepository<Course, String> {
 
     List<Course> findAllByCategoryId(String categoryId);
 
+    long countByCategoryId(String categoryId);
+
     List<Course> findAllByInstructorId(String instructorId);
 
     List<Course> findAllByStatus(com.hust.courseservice.entity.enums.CourseStatus status);
@@ -28,7 +30,9 @@ public interface CourseRepository extends MongoRepository<Course, String> {
         "    'totalCourses': { $sum: 1 }, " +
         "    'totalActiveCourses': { $sum: { $cond: [ { $eq: [ '$status', 'APPROVED' ] }, 1, 0 ] } }, " +
         "    'totalDraftCourses': { $sum: { $cond: [ { $eq: [ '$status', 'DRAFT' ] }, 1, 0 ] } }, " +
-        "    'totalViews': { $sum: '$views' } " +
+        "    'totalViews': { $sum: '$views' }, " +
+        "    'averageRating': { $avg: '$avgRatingStars' }, " +
+        "    'totalReviews': { $sum: '$numOfReviews' } " +
         "} }"
     })
     List<CourseInsightReportResponse> getCourseInsightsAggregation();
@@ -38,9 +42,12 @@ public interface CourseRepository extends MongoRepository<Course, String> {
         "{ '$group': { " +
         "    '_id': '$instructorId', " +
         "    'totalCourses': { $sum: 1 }, " +
-        "    'totalViews': { $sum: '$views' } " +
+        "    'totalViews': { $sum: '$views' }, " +
+        "    'averageRating': { $avg: '$avgRatingStars' }, " +
+        "    'totalReviews': { $sum: '$numOfReviews' }, " +
+        "    'studentCount': { $sum: '$studentCount' } " +
         "} }",
-        "{ '$project': { 'instructorId': '$_id', 'totalCourses': 1, 'totalViews': 1, '_id': 0 } }"
+        "{ '$project': { 'instructorId': '$_id', 'totalCourses': 1, 'totalViews': 1, 'averageRating': 1, 'totalReviews': 1, 'studentCount': 1, '_id': 0 } }"
     })
     List<AuthorCourseReportResponse> getAuthorCourseReportAggregation(String instructorId);
 }

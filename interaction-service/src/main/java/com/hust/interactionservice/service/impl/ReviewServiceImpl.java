@@ -12,9 +12,12 @@ import com.hust.interactionservice.repository.ReviewRepository;
 import com.hust.interactionservice.service.ReviewService;
 import com.hust.interactionservice.utils.AppUtils;
 import com.hust.commonlibrary.dto.ListResponse;
+import com.hust.commonlibrary.event.CourseReviewUpdatedEvent;
 import com.hust.commonlibrary.utils.SecurityUtils;
 import com.hust.commonlibrary.annotation.CheckCourseOwner;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -26,12 +29,14 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ReviewServiceImpl implements ReviewService {
 
     private final ReviewRepository reviewRepository;
     private final ReviewReplyRepository reviewReplyRepository;
     private final ReviewMapper reviewMapper;
     private final ReviewReplyMapper reviewReplyMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public ReviewResponse createReview(ReviewRequest request) {
@@ -46,6 +51,9 @@ public class ReviewServiceImpl implements ReviewService {
         
         // TODO: Call Feign Client to Order Service to set item.reviewed = true
         // orderClient.updateItemReviewed(request.getOrderId(), request.getCourseId(), true);
+
+        // Phát sự kiện cập nhật thống kê đánh giá lên Kafka để course-service đồng bộ
+        publishReviewStats(request.getCourseId());
 
         return reviewMapper.entityToResponse(savedReview);
     }
@@ -190,5 +198,30 @@ public class ReviewServiceImpl implements ReviewService {
                 .totalReviews(total)
                 .ratingPercentages(percentages)
                 .build();
+    }
+
+    /**
+     * Tính toán gộp (Aggregation) thống kê đánh giá của khóa học rồi phát sự kiện Spring local.
+     * ReviewEventListener sẽ lắng nghe sự kiện này và gửi lên Kafka.
+     */
+    private void publishReviewStats(String courseId) {
+        try {
+            List<Review> reviews = reviewRepository.findByCourseId(courseId);
+            long count = reviews.size();
+            double avg = count > 0
+                    ? Math.round(reviews.stream().mapToDouble(Review::getRatingStar).average().orElse(0.0) * 10.0) / 10.0
+                    : 0.0;
+
+            CourseReviewUpdatedEvent event = CourseReviewUpdatedEvent.builder()
+                    .courseId(courseId)
+                    .avgRatingStars(avg)
+                    .numOfReviews(count)
+                    .build();
+
+            eventPublisher.publishEvent(event);
+            log.info("📤 Published local CourseReviewUpdatedEvent: courseId={}, avg={}, count={}", courseId, avg, count);
+        } catch (Exception e) {
+            log.error("⚠️ Failed to publish local review stats for course {}: {}", courseId, e.getMessage());
+        }
     }
 }

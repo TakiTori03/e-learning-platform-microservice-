@@ -4,6 +4,5 @@ public enum LessonType {
     VIDEO,
     DOCUMENT,
     QUIZ,
-    CODING,
     ASSIGNMENT
 }

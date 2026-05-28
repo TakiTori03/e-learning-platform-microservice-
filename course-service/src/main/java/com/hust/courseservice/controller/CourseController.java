@@ -12,9 +12,11 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import com.hust.courseservice.entity.enums.CourseStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/courses")
@@ -24,35 +26,13 @@ public class CourseController {
 
     private final CourseService courseService;
 
-    @PostMapping
-    @PreAuthorize("hasRole('INSTRUCTOR')")
-    public ResponseEntity<ApiResponse<CourseResponse>> create(@RequestBody CourseRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(
-                ApiResponse.<CourseResponse>builder()
-                        .success(true)
-                        .payload(courseService.create(request))
-                        .build()
-        );
-    }
-
-    @PutMapping("/{id}")
-    @PreAuthorize("hasRole('INSTRUCTOR')")
-    public ResponseEntity<ApiResponse<CourseResponse>> update(@PathVariable String id, @RequestBody CourseRequest request) {
+    @GetMapping("/count-by-categories")
+    public ResponseEntity<ApiResponse<Map<String, Long>>> countByCategories(
+            @RequestParam List<String> categoryIds) {
         return ResponseEntity.ok(
-                ApiResponse.<CourseResponse>builder()
+                ApiResponse.<Map<String, Long>>builder()
                         .success(true)
-                        .payload(courseService.update(id, request))
-                        .build()
-        );
-    }
-
-    @PostMapping("/delete")
-    @PreAuthorize("hasRole('INSTRUCTOR')")
-    public ResponseEntity<ApiResponse<Void>> delete(@RequestBody List<String> ids) {
-        courseService.delete(ids);
-        return ResponseEntity.ok(
-                ApiResponse.<Void>builder()
-                        .success(true)
+                        .payload(courseService.countByCategories(categoryIds))
                         .build()
         );
     }
@@ -64,15 +44,17 @@ public class CourseController {
             @RequestParam(required = false) List<String> topics,
             @RequestParam(required = false) List<String> levels,
             @RequestParam(required = false) List<String> prices,
+            @RequestParam(required = false) Double rating,
             @PageableDefault Pageable pageable) {
 
         return ResponseEntity.ok(
                 ApiResponse.<ListResponse<CourseResponse>>builder()
                         .success(true)
-                        .payload(courseService.search(q, authors, topics, levels, prices, pageable))
+                        .payload(courseService.search(q, authors, topics, levels, prices, rating, CourseStatus.PUBLISHED, pageable))
                         .build()
         );
     }
+
 
 
     @GetMapping("/{id}")
@@ -127,16 +109,7 @@ public class CourseController {
         );
     }
 
-    @PatchMapping("/update-active-status/{id}")
-    @PreAuthorize("hasAnyRole('INSTRUCTOR', 'ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> updateStatus(@PathVariable String id) {
-        courseService.updateStatus(id);
-        return ResponseEntity.ok(
-                ApiResponse.<Void>builder()
-                        .success(true)
-                        .build()
-        );
-    }
+
 
     @GetMapping("/all-active")
     public ResponseEntity<ApiResponse<List<CourseResponse>>> getAllActiveCourses() {
@@ -157,6 +130,109 @@ public class CourseController {
                 ApiResponse.<ListResponse<Object>>builder()
                         .success(true)
                         .payload(courseService.getHistories(id, page, limit))
+                        .build()
+        );
+    }
+
+    // --- Instructor Methods ---
+    @PostMapping
+    @PreAuthorize("hasRole('INSTRUCTOR')")
+    public ResponseEntity<ApiResponse<CourseResponse>> create(@RequestBody CourseRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                ApiResponse.<CourseResponse>builder()
+                        .success(true)
+                        .payload(courseService.create(request))
+                        .build()
+        );
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('INSTRUCTOR')")
+    public ResponseEntity<ApiResponse<CourseResponse>> update(@PathVariable String id, @RequestBody CourseRequest request) {
+        return ResponseEntity.ok(
+                ApiResponse.<CourseResponse>builder()
+                        .success(true)
+                        .payload(courseService.update(id, request))
+                        .build()
+        );
+    }
+
+    @PostMapping("/delete")
+    @PreAuthorize("hasRole('INSTRUCTOR')")
+    public ResponseEntity<ApiResponse<Void>> delete(@RequestBody List<String> ids) {
+        courseService.delete(ids);
+        return ResponseEntity.ok(
+                ApiResponse.<Void>builder()
+                        .success(true)
+                        .build()
+        );
+    }
+
+    @PatchMapping("/update-active-status/{id}")
+    @PreAuthorize("hasRole('INSTRUCTOR')")
+    public ResponseEntity<ApiResponse<Void>> updateStatus(
+            @PathVariable String id,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String access) {
+        courseService.updateStatus(id, status, access);
+        return ResponseEntity.ok(
+                ApiResponse.<Void>builder()
+                        .success(true)
+                        .build()
+        );
+    }
+
+    @GetMapping("/instructor/search")
+    @PreAuthorize("hasRole('INSTRUCTOR')")
+    public ResponseEntity<ApiResponse<ListResponse<CourseResponse>>> instructorSearch(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) List<String> topics,
+            @RequestParam(required = false) List<String> levels,
+            @RequestParam(required = false) List<String> prices,
+            @RequestParam(required = false) Double rating,
+            @RequestParam(required = false) CourseStatus status,
+            @PageableDefault Pageable pageable) {
+        String instructorId = com.hust.commonlibrary.utils.SecurityUtils.getCurrentUserIdOrThrow();
+        log.info("Instructor {} is searching their courses with query q: {}, status: {}", instructorId, q, status);
+        return ResponseEntity.ok(
+                ApiResponse.<ListResponse<CourseResponse>>builder()
+                        .success(true)
+                        .payload(courseService.search(q, List.of(instructorId), topics, levels, prices, rating, status, pageable))
+                        .build()
+        );
+    }
+
+    // --- Admin Methods ---
+    @PatchMapping("/{id}/approve")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> approve(
+            @PathVariable String id,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String access) {
+        courseService.adminUpdateStatus(id, status, access);
+        return ResponseEntity.ok(
+                ApiResponse.<Void>builder()
+                        .success(true)
+                        .message("Course status updated successfully")
+                        .build()
+        );
+    }
+
+    @GetMapping("/admin/search")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<ListResponse<CourseResponse>>> adminSearch(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) List<String> authors,
+            @RequestParam(required = false) List<String> topics,
+            @RequestParam(required = false) List<String> levels,
+            @RequestParam(required = false) List<String> prices,
+            @RequestParam(required = false) Double rating,
+            @RequestParam(required = false) CourseStatus status,
+            @PageableDefault Pageable pageable) {
+        return ResponseEntity.ok(
+                ApiResponse.<ListResponse<CourseResponse>>builder()
+                        .success(true)
+                        .payload(courseService.search(q, authors, topics, levels, prices, rating, status, pageable))
                         .build()
         );
     }

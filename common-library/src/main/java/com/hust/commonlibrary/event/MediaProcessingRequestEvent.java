@@ -14,5 +14,5 @@ public class MediaProcessingRequestEvent {
     private String fileUrl;
     private String courseId;
     private String lessonId;
-    private String mediaType; // "VIDEO" or "PDF"
+    private String mediaType;
 }

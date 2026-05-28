@@ -7,7 +7,6 @@ import com.hust.identityservice.dto.response.UserResponse;
 import com.hust.identityservice.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -46,6 +45,16 @@ public class UserController {
         return ResponseEntity.ok(
                 ApiResponse.<Void>builder()
                         .success(true)
+                        .build()
+        );
+    }
+
+    @GetMapping("/authors/select")
+    public ResponseEntity<ApiResponse<List<UserResponse>>> getInstructorsSelect() {
+        return ResponseEntity.ok(
+                ApiResponse.<List<UserResponse>>builder()
+                        .success(true)
+                        .payload(userService.getInstructorsSelect())
                         .build()
         );
     }

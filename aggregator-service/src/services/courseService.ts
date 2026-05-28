@@ -4,7 +4,6 @@ import { CourseMapper } from "../utils/mappers.js";
 import {
   ApiResponse,
   CourseResponse,
-  RatingResponse,
   ProgressResponse,
   InstructorResponse,
   ListResponse,
@@ -28,7 +27,7 @@ export const getEnrichedCourseDetail = async (
     )
     .then(async (r) => {
       const course = r.data?.payload || null;
-      if (!course || !course.instructorId) return { course, instructor: null };
+      if (!course?.instructorId) return { course, instructor: null };
 
       const instructor = await axios
         .get<ApiResponse<InstructorResponse>>(
@@ -40,22 +39,6 @@ export const getEnrichedCourseDetail = async (
       return { course, instructor };
     })
     .catch(() => ({ course: null, instructor: null }));
-
-  const ratingPromise = axios
-    .post<ApiResponse<RatingResponse[]>>(
-      `${config.gatewayUrl}/interaction/internal/reviews/course-ratings`,
-      [id],
-    )
-    .then((r) => (r.data?.payload || []).find((i) => i.courseId === id) || null)
-    .catch(() => null);
-
-  const studentCountPromise = axios
-    .get<ApiResponse<Record<string, number>>>(
-      `${config.gatewayUrl}/order/internal/orders/enrollment-counts?courseIds=${id}`,
-    )
-    .then((r) => r.data?.payload || ({} as Record<string, number>))
-    .then((payload) => payload[id] ?? 0)
-    .catch(() => 0);
 
   const isBoughtPromise = userId
     ? axios
@@ -75,11 +58,9 @@ export const getEnrichedCourseDetail = async (
         .catch(() => 0.0)
     : Promise.resolve(0.0);
 
-  const [courseResult, rating, studentCount, isBought, progress] =
+  const [courseResult, isBought, progress] =
     await Promise.all([
       courseWithInstructorPromise,
-      ratingPromise,
-      studentCountPromise,
       isBoughtPromise,
       progressPromise,
     ]);
@@ -87,7 +68,7 @@ export const getEnrichedCourseDetail = async (
   const { course, instructor } = courseResult;
   if (!course) return null;
 
-  return CourseMapper.toDetail(course, instructor, rating, studentCount, isBought, progress);
+  return CourseMapper.toDetail(course, instructor, isBought, progress);
 };
 
 /**
@@ -97,6 +78,7 @@ export const getEnrichedCourseDetail = async (
 export const searchEnrichedCourses = async (
   queryParams: Record<string, unknown>,
   userId?: string | null,
+  endpointPath: string = "/course/courses/search"
 ): Promise<ListResponse<CourseCardDTO> | null> => {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(queryParams)) {
@@ -109,10 +91,26 @@ export const searchEnrichedCourses = async (
     }
   }
 
+  // Map sort parameter from FE to DB field names
+  const sort = queryParams.sort as string;
+  if (sort) {
+    let mappedSort = "createdAt,desc";
+    if (sort === "mostReviews") {
+      mappedSort = "numOfReviews,desc";
+    } else if (sort === "mostEnrolled") {
+      mappedSort = "studentCount,desc";
+    } else if (sort === "newest") {
+      mappedSort = "createdAt,desc";
+    } else {
+      mappedSort = sort;
+    }
+    params.append("sort", mappedSort);
+  }
+
   // 1. Initial Catalog hit
   const courseSearchResponse = await axios
     .get<ApiResponse<ListResponse<CourseResponse>>>(
-      `${config.gatewayUrl}/course/courses/search?${params.toString()}`
+      `${config.gatewayUrl}${endpointPath}?${params.toString()}`
     )
     .then((r) => r.data?.payload)
     .catch(() => null);
@@ -128,16 +126,6 @@ export const searchEnrichedCourses = async (
   const instructorIds = Array.from(new Set(courses.map((c) => c.instructorId).filter(Boolean)));
 
   // 2. Trigger OPTIMIZED Bulk parallel fetches
-  const ratingBulkPromise = axios
-    .post<ApiResponse<RatingResponse[]>>(`${config.gatewayUrl}/interaction/internal/reviews/course-ratings`, courseIds)
-    .then((r) => r.data?.payload || [])
-    .catch(() => [] as RatingResponse[]);
-
-  const studentCountBulkPromise = axios
-    .get<ApiResponse<Record<string, number>>>(`${config.gatewayUrl}/order/internal/orders/enrollment-counts?courseIds=${courseIds.join(",")}`)
-    .then((r) => r.data?.payload || ({} as Record<string, number>))
-    .catch(() => ({}) as Record<string, number>);
-
   const instructorsBulkPromise = instructorIds.length 
     ? axios
         .post<ApiResponse<InstructorResponse[]>>(`${config.gatewayUrl}/identity/internal/users/bulk`, instructorIds)
@@ -160,27 +148,22 @@ export const searchEnrichedCourses = async (
     : Promise.resolve({} as Record<string, any>);
 
   // Execute collapsed round
-  const [ratings, counts, instructors, boughtMapRaw, progressMapRaw] = await Promise.all([
-    ratingBulkPromise,
-    studentCountBulkPromise,
+  const [instructors, boughtMapRaw, progressMapRaw] = await Promise.all([
     instructorsBulkPromise,
     isBoughtBulkPromise,
     progressBulkPromise,
   ]);
 
-  const ratingsMap = new Map(ratings.map((r) => [r.courseId, r]));
   const instructorsMap = new Map(instructors.map((i) => [i.id, i]));
 
   // 4. Final Mapping to dedicated compact card DTO
   const content = courses.map((course) => {
-    const rating = ratingsMap.get(course.id) || null;
     const instructor = instructorsMap.get(course.instructorId || "") || null;
-    const count = counts[course.id] ?? 0;
     const isBought = !!boughtMapRaw[course.id];
     const rawProgress = progressMapRaw[course.id];
     const progress = rawProgress?.progressPercentage ?? 0.0;
 
-    return CourseMapper.toCard(course, instructor, rating, count, isBought, progress);
+    return CourseMapper.toCard(course, instructor, isBought, progress);
   });
 
   return {
@@ -249,22 +232,7 @@ export const getMyWishlistEnriched = async (userId: string): Promise<CourseCardD
       .catch(() => null)
   );
 
-  const ratingBulkPromise = axios
-    .post<ApiResponse<RatingResponse[]>>(`${config.gatewayUrl}/interaction/internal/reviews/course-ratings`, courseIds)
-    .then(r => r.data?.payload || [])
-    .catch(() => []);
-
-  const countsBulkPromise = axios
-    .get<ApiResponse<Record<string, number>>>(`${config.gatewayUrl}/order/internal/orders/enrollment-counts?courseIds=${courseIds.join(",")}`)
-    .then(r => r.data?.payload || ({} as Record<string, number>))
-    .catch(() => ({} as Record<string, number>));
-
-  const [allCoursesRaw, ratings, counts] = await Promise.all([
-    Promise.all(coursePromises),
-    ratingBulkPromise,
-    countsBulkPromise
-  ]);
-
+  const allCoursesRaw = await Promise.all(coursePromises);
   const validCourses = allCoursesRaw.filter((c): c is CourseResponse => c !== null);
   if (!validCourses.length) return [];
 
@@ -276,15 +244,12 @@ export const getMyWishlistEnriched = async (userId: string): Promise<CourseCardD
         .catch(() => [])
     : [];
 
-  const ratingsMap = new Map(ratings.map(r => [r.courseId, r]));
   const instructorsMap = new Map(instructors.map(i => [i.id, i]));
 
   return validCourses.map((course) => {
-    const rating = ratingsMap.get(course.id) || null;
     const instructor = instructorsMap.get(course.instructorId || "") || null;
-    const count = counts[course.id] ?? 0;
 
     // Mapped cleanly to compact card
-    return CourseMapper.toCard(course, instructor, rating, count, false, 0);
+    return CourseMapper.toCard(course, instructor, false, 0);
   });
 };

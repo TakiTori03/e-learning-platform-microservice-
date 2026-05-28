@@ -23,7 +23,9 @@ public final class AppConstants {
 
     @SuppressWarnings("java:S2386")
     public static final String[] PUBLIC_API_PATH = {
+            "/auth/login",
             "/auth/register",
+            "/auth/register-instructor",
             "/auth/logout",
             "/auth/refresh-token"
     };
