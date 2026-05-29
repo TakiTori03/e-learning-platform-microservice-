@@ -21,6 +21,12 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
+  # Redis for Media Processing Status Coordination
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
 eureka:
   instance:
     prefer-ip-address: true
@@ -49,8 +55,6 @@ app:
     path: ${WHISPER_PATH:bin/whisper-cli.exe}
     model-path: ${WHISPER_MODEL_PATH:models/whisper/ggml-base.bin}
     language: ${WHISPER_LANGUAGE:auto}
-  parser:
-    service-url: ${PARSER_SERVICE_URL:http://127.0.0.1:8090/api/v1/parser/extract}
 
 logging:
   level:

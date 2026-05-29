@@ -101,5 +101,17 @@ public class MinioStorageStrategy implements StorageStrategy {
         }
     }
 
-
+    @Override
+    public void uploadFile(String localFilePath, String remoteKey) throws IOException {
+        ensureBucketExists();
+        java.io.File file = new java.io.File(localFilePath);
+        try {
+            s3Client.putObject(new PutObjectRequest(bucketName, remoteKey, file)
+                    .withCannedAcl(CannedAccessControlList.PublicRead));
+            log.info("Uploaded single file {} to S3 key {}", localFilePath, remoteKey);
+        } catch (Exception e) {
+            throw new IOException("Failed to upload file " + localFilePath + " to MinIO key " + remoteKey, e);
+        }
+    }
 }
+

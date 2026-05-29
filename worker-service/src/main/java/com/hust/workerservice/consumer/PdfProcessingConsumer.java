@@ -3,44 +3,40 @@ package com.hust.workerservice.consumer;
 import com.hust.commonlibrary.constant.KafkaTopics;
 import com.hust.commonlibrary.event.LessonMediaReadyEvent;
 import com.hust.commonlibrary.event.MediaProcessingRequestEvent;
-import com.hust.commonlibrary.entity.ContentType;
-import com.hust.commonlibrary.event.RawTextIngestedEvent;
+import com.hust.commonlibrary.event.PdfParserRequestEvent;
 import com.hust.commonlibrary.annotation.TrackPerformance;
-import com.hust.workerservice.strategy.StorageStrategy;
-import com.hust.workerservice.dto.PythonParserResponse;
-import com.hust.workerservice.dto.ParsedPageDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.http.*;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.annotation.RetryableTopic;
 import org.springframework.kafka.annotation.DltHandler;
 import org.springframework.kafka.retrytopic.TopicSuffixingStrategy;
 import org.springframework.kafka.retrytopic.DltStrategy;
-import org.springframework.retry.annotation.Backoff;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.retry.annotation.Backoff;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestTemplate;
 
-import java.io.File;
-
+/**
+ * Consumer xử lý sự kiện PDF từ Kafka.
+ *
+ * Luồng mới (Kafka-driven):
+ * 1. Nhận sự kiện media-processing (DOCUMENT).
+ * 2. Thay vì gửi REST POST multipart tới Python, chỉ cần phát PdfParserRequestEvent
+ *    chứa fileUrl (MinIO key) lên Kafka topic pdf-parser-requests.
+ * 3. Python pdf-parser-service sẽ tự tải file từ MinIO, OCR, và trả kết quả
+ *    qua topic pdf-parser-results.
+ * 4. PdfParserResultConsumer sẽ nhận kết quả và phát RawTextIngestedEvent + LessonMediaReadyEvent.
+ *
+ * Lợi ích: Giải phóng Thread Java ngay lập tức, kiểm soát tải GPU hoàn toàn.
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class PdfProcessingConsumer {
 
-    private final StorageStrategy storageStrategy;
     private final KafkaTemplate<String, Object> kafkaTemplate;
-    private final RestTemplate restTemplate;
-
-    @Value("${app.parser.service-url:http://127.0.0.1:8090/api/v1/parser/extract}")
-    private String parserServiceUrl;
 
     @RetryableTopic(
             attempts = "4",
@@ -48,13 +44,11 @@ public class PdfProcessingConsumer {
             topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
             dltStrategy = DltStrategy.FAIL_ON_ERROR,
             include = {
-                org.springframework.web.client.RestClientException.class,
-                java.io.IOException.class,
                 java.lang.RuntimeException.class
             }
     )
     @KafkaListener(topics = KafkaTopics.MEDIA_PROCESSING, groupId = "pdf-worker-group", concurrency = "1")
-    @TrackPerformance(threshold = 30000, description = "GPU-Accelerated PDF OCR & Semantic Chunking Ingestion Pipeline")
+    @TrackPerformance(threshold = 30000, description = "PDF Parser Kafka Request Dispatch")
     public void consume(MediaProcessingRequestEvent event) {
         if (!"DOCUMENT".equalsIgnoreCase(event.getMediaType())) {
             return;
@@ -62,74 +56,21 @@ public class PdfProcessingConsumer {
         
         log.info("📄 Nhận sự kiện xử lý PDF từ Kafka: {}", event);
 
-        File tempFile = null;
         try {
-            // 1. Tạo tệp tạm cục bộ và tải file PDF từ MinIO về
-            tempFile = File.createTempFile("worker-pdf-raw-", ".pdf");
-            storageStrategy.downloadFileToLocal(event.getFileUrl(), tempFile);
-
-            // 2. Gửi tệp PDF sang Python Service cục bộ để OCR bằng GPU CUDA & Semantic Chunking
-            log.info("🐍 Đang đẩy tệp PDF sang Python Parser Service để bóc tách thông minh...");
-            
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-
-            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-            body.add("file", new FileSystemResource(tempFile));
-
-            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-            ResponseEntity<PythonParserResponse> response = restTemplate.postForEntity(
-                    parserServiceUrl, requestEntity, PythonParserResponse.class);
-
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                PythonParserResponse parserResult = response.getBody();
-                log.info("✅ Bóc tách PDF thành công! Tổng số trang: {}", parserResult.getTotalPages());
-
-                // 3. Duyệt qua từng trang và gửi các Semantic Chunks đã cắt lên Kafka
-                for (ParsedPageDto page : parserResult.getPages()) {
-                    if (page.getChunks() != null) {
-                        for (int chunkIdx = 0; chunkIdx < page.getChunks().size(); chunkIdx++) {
-                            String chunkContent = page.getChunks().get(chunkIdx);
-                            if (chunkContent != null && !chunkContent.trim().isEmpty()) {
-                                RawTextIngestedEvent ingestionEvent = RawTextIngestedEvent.builder()
-                                        .courseId(event.getCourseId())
-                                        .lessonId(event.getLessonId())
-                                        .mediaId(event.getMediaId())
-                                        .content(chunkContent.trim())
-                                        .contentType(ContentType.PDF)
-                                        .sourceCitation("Trang " + page.getPage())
-                                        .build();
-                                
-                                kafkaTemplate.send(KafkaTopics.RAW_TEXT_INGESTED, event.getLessonId(), ingestionEvent);
-                            }
-                        }
-                    }
-                }
-            } else {
-                throw new RuntimeException("Python Parser Service trả về mã lỗi: " + response.getStatusCode());
-            }
-
-            // 4. Phát sự kiện LessonMediaReadyEvent báo cáo hoàn thành
-            long fileSize = tempFile.length();
-            LessonMediaReadyEvent readyEvent = LessonMediaReadyEvent.builder()
-                    .lessonId(event.getLessonId())
+            // Phát sự kiện yêu cầu bóc tách PDF qua Kafka (thay vì REST)
+            PdfParserRequestEvent parserRequest = PdfParserRequestEvent.builder()
                     .mediaId(event.getMediaId())
-                    .url(event.getFileUrl())
-                    .fileSize(fileSize)
+                    .courseId(event.getCourseId())
+                    .lessonId(event.getLessonId())
+                    .fileUrl(event.getFileUrl())
                     .build();
-            
-            kafkaTemplate.send(KafkaTopics.LESSON_MEDIA_READY, event.getLessonId(), readyEvent);
-            log.info("🎉 Hoàn tất toàn bộ chu trình xử lý PDF & Gửi Ingestion Event cho lesson {}", event.getLessonId());
+
+            kafkaTemplate.send(KafkaTopics.PDF_PARSER_REQUESTS, event.getLessonId(), parserRequest);
+            log.info("📨 Đã phát PdfParserRequestEvent qua Kafka cho Python Parser bóc tách bất đồng bộ. FileUrl: {}", event.getFileUrl());
 
         } catch (Exception e) {
-            log.error("❌ Lỗi nghiêm trọng khi bóc tách PDF {}: {}", event.getMediaId(), e.getMessage(), e);
-            throw new RuntimeException("Failed to process PDF, triggering retry.", e);
-        } finally {
-            // Xóa sạch tệp tạm cục bộ để bảo vệ ổ cứng
-            if (tempFile != null && tempFile.exists()) {
-                tempFile.delete();
-                log.info("🧹 Đã dọn dẹp file PDF tạm cục bộ.");
-            }
+            log.error("❌ Lỗi khi gửi yêu cầu PDF Parser qua Kafka cho media {}: {}", event.getMediaId(), e.getMessage(), e);
+            throw new RuntimeException("Failed to dispatch PDF parser request to Kafka.", e);
         }
     }
 
@@ -137,7 +78,6 @@ public class PdfProcessingConsumer {
     public void handleDlt(MediaProcessingRequestEvent event, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         log.error("❌ [DLQ] Xử lý PDF cho lesson {} thất bại hoàn toàn sau tất cả các lần thử lại tại topic: {}", event.getLessonId(), topic);
         try {
-
             LessonMediaReadyEvent failedEvent = LessonMediaReadyEvent.builder()
                     .lessonId(event.getLessonId())
                     .mediaId(event.getMediaId())

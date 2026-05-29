@@ -21,8 +21,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import com.hust.identityservice.repository.UserSpecification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 
 import java.util.List;
 import java.util.UUID;
@@ -185,11 +188,18 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Transactional
-    public ListResponse<UserResponse> getAllUsers(Pageable pageable) {
-        log.info("Fetching paginated user list from DB (Fast SQL Query): {}", pageable);
+    @Transactional(readOnly = true)
+    public ListResponse<UserResponse> getAllUsers(Pageable pageable, String q, String role, UserStatus status) {
+        log.info("Fetching paginated user list with filters - q: {}, role: {}, status: {}, pageable: {}", q, role, status, pageable);
 
-        Page<User> userPage = userRepository.findAll(pageable);
+        String searchKey = (q != null && !q.trim().isEmpty()) ? q.trim() : null;
+        String roleFilter = (role != null && !role.trim().isEmpty()) ? role.trim() : null;
+
+        Specification<User> spec = Specification.where(UserSpecification.hasSearchQuery(searchKey))
+                .and(UserSpecification.hasRole(roleFilter))
+                .and(UserSpecification.hasStatus(status));
+
+        Page<User> userPage = userRepository.findAll(spec, pageable);
 
         List<UserResponse> userResponses = userPage.getContent().stream()
                 .map(userMapper::toUserResponse)
@@ -198,3 +208,6 @@ public class UserServiceImpl implements UserService {
         return ListResponse.of(userResponses, userPage);
     }
 }
+
+
+

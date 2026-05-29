@@ -3,5 +3,14 @@ uvicorn>=0.28.0
 python-multipart>=0.0.9
 pymupdf>=1.24.11
 paddleocr==2.7.3
+--find-links https://www.paddlepaddle.org.cn/whl/windows/mkl/avx/stable.html
+paddlepaddle-gpu==2.6.1
 numpy<2.0.0
 nvidia-cudnn-cu12>=8.9.0
+confluent-kafka>=2.2.0
+boto3>=1.28.0
+botocore>=1.31.0
+python-dotenv>=1.0.0
+
+
+

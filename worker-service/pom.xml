@@ -45,24 +45,7 @@
             <artifactId>spring-security-core</artifactId>
         </dependency>
 
-        <!-- PDF Text Extraction -->
-        <dependency>
-            <groupId>org.apache.pdfbox</groupId>
-            <artifactId>pdfbox</artifactId>
-            <version>3.0.2</version>
-        </dependency>
 
-        <!-- Audio Processing & Transcoding -->
-        <dependency>
-            <groupId>ws.schild</groupId>
-            <artifactId>jave-core</artifactId>
-            <version>3.3.1</version>
-        </dependency>
-        <dependency>
-            <groupId>ws.schild</groupId>
-            <artifactId>jave-nativebin-win64</artifactId>
-            <version>3.3.1</version>
-        </dependency>
 
         <!-- AWS S3 / Minio -->
         <dependency>
@@ -74,6 +57,12 @@
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
             <version>4.5.13</version>
+        </dependency>
+
+        <!-- Redis for Media Processing Status Coordination -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
     </dependencies>
 

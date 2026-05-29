@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import com.hust.courseservice.entity.enums.CourseStatus;
+import com.hust.courseservice.entity.enums.CourseAccess;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -172,8 +173,8 @@ public class CourseController {
     @PreAuthorize("hasRole('INSTRUCTOR')")
     public ResponseEntity<ApiResponse<Void>> updateStatus(
             @PathVariable String id,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String access) {
+            @RequestParam(required = false) CourseStatus status,
+            @RequestParam(required = false) CourseAccess access) {
         courseService.updateStatus(id, status, access);
         return ResponseEntity.ok(
                 ApiResponse.<Void>builder()
@@ -207,8 +208,8 @@ public class CourseController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> approve(
             @PathVariable String id,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String access) {
+            @RequestParam(required = false) CourseStatus status,
+            @RequestParam(required = false) CourseAccess access) {
         courseService.adminUpdateStatus(id, status, access);
         return ResponseEntity.ok(
                 ApiResponse.<Void>builder()

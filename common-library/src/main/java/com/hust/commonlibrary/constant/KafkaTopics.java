@@ -73,4 +73,33 @@ public final class KafkaTopics {
      * Consumer: course-service
      */
     public static final String COURSE_ENROLLMENT_UPDATED = "course-enrollment-updated-topic";
+
+    /**
+     * Triggered to request STT (Speech-To-Text) processing.
+     * Producer: worker-service
+     * Consumer: stt-service (Python)
+     */
+    public static final String STT_REQUESTS = "stt-requests-topic";
+
+    /**
+     * Triggered when STT transcription is completed.
+     * Producer: stt-service (Python)
+     * Consumer: worker-service
+     */
+    public static final String STT_RESULTS = "stt-results-topic";
+
+    /**
+     * Triggered to request PDF parsing / OCR.
+     * Producer: worker-service
+     * Consumer: pdf-parser-service (Python)
+     */
+    public static final String PDF_PARSER_REQUESTS = "pdf-parser-requests-topic";
+
+    /**
+     * Triggered when PDF parsing is completed.
+     * Producer: pdf-parser-service (Python)
+     * Consumer: worker-service
+     */
+    public static final String PDF_PARSER_RESULTS = "pdf-parser-results-topic";
 }
+

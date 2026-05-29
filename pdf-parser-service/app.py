@@ -1,5 +1,11 @@
 import os
 import sys
+from dotenv import load_dotenv
+load_dotenv()
+
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
 
 # ==============================================================================
 # WINDOWS DLL RESOLUTION PATCH (Chống lỗi WinError 127 & Tự động sửa thiếu cuDNN)
@@ -29,10 +35,17 @@ import re
 import shutil
 import tempfile
 import numpy as np
+import threading
+import json
+import boto3
+from botocore.client import Config as BotoConfig
+from confluent_kafka import Consumer, Producer, KafkaError
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 import fitz  # PyMuPDF
 from paddleocr import PaddleOCR
+import logging
+logging.getLogger("ppocr").setLevel(logging.WARNING)
 
 app = FastAPI(
     title="GPU-Accelerated AI PDF Parser Service",
@@ -40,13 +53,48 @@ app = FastAPI(
     version="2.1.0"
 )
 
-# Khởi tạo PaddleOCR chạy 100% trên GPU CUDA (Đã tối ưu bộ nhớ)
+# Khởi tạo PaddleOCR chạy 100% trên GPU CUDA (Đã tối ưu bộ nhớ, tắt log debug phiền phức)
 try:
-    ocr_engine = PaddleOCR(use_angle_cls=True, lang="vi", use_gpu=True, gpu_mem=1000)
+    ocr_engine = PaddleOCR(use_angle_cls=True, lang="vi", use_gpu=True, gpu_mem=1000, show_log=False)
     print("🚀 PaddleOCR khởi tạo thành công chạy 100% trên GPU CUDA!")
 except Exception as e:
     print(f"⚠️ Cảnh báo khởi tạo GPU: {e}. Chuyển sang CPU.")
-    ocr_engine = PaddleOCR(use_angle_cls=True, lang="vi", use_gpu=False)
+    ocr_engine = PaddleOCR(use_angle_cls=True, lang="vi", use_gpu=False, show_log=False)
+
+
+# ==============================================================================
+# CẤU HÌNH MINIO + KAFKA TỪ BIẾN MÔI TRƯỜNG
+# ==============================================================================
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT")
+MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY")
+MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY")
+MINIO_BUCKET = os.getenv("MINIO_BUCKET")
+
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
+KAFKA_GROUP_ID = os.getenv("KAFKA_GROUP_ID")
+PDF_PARSER_REQUESTS_TOPIC = os.getenv("PDF_PARSER_REQUESTS_TOPIC")
+PDF_PARSER_RESULTS_TOPIC = os.getenv("PDF_PARSER_RESULTS_TOPIC")
+
+# Kiểm tra các biến bắt buộc
+required_vars = [
+    "MINIO_ENDPOINT", "MINIO_ACCESS_KEY", "MINIO_SECRET_KEY", "MINIO_BUCKET",
+    "KAFKA_BOOTSTRAP_SERVERS", "KAFKA_GROUP_ID", "PDF_PARSER_REQUESTS_TOPIC", "PDF_PARSER_RESULTS_TOPIC"
+]
+missing_vars = [var for var in required_vars if not os.getenv(var)]
+if missing_vars:
+    raise RuntimeError(f"❌ Thiếu các biến môi trường bắt buộc cho PDF Parser: {', '.join(missing_vars)}")
+
+
+# Khởi tạo MinIO S3 Client
+s3_client = boto3.client(
+    "s3",
+    endpoint_url=MINIO_ENDPOINT,
+    aws_access_key_id=MINIO_ACCESS_KEY,
+    aws_secret_access_key=MINIO_SECRET_KEY,
+    region_name="us-east-1",
+    config=BotoConfig(signature_version="s3v4"),
+)
+print(f"✅ MinIO Client (PDF Parser) khởi tạo thành công: {MINIO_ENDPOINT}/{MINIO_BUCKET}")
 
 def extract_structured_page_content(page, page_num, temp_dir) -> tuple:
     """
@@ -307,7 +355,7 @@ async def extract_pdf_content(file: UploadFile = File(...)):
                         print("🔄 Tự động chuyển sang chạy dự phòng bằng CPU OCR để tránh lỗi HTTP 500...")
                         try:
                             # Khởi tạo nhanh bộ xử lý OCR dự phòng bằng CPU
-                            cpu_ocr_engine = PaddleOCR(use_angle_cls=True, lang="vi", use_gpu=False)
+                            cpu_ocr_engine = PaddleOCR(use_angle_cls=True, lang="vi", use_gpu=False, show_log=False)
                             ocr_result = cpu_ocr_engine.ocr(temp_img_path, cls=True)
                         except Exception as cpu_err:
                             print(f"❌ Lỗi nghiêm trọng khi chạy OCR bằng CPU: {cpu_err}")
@@ -352,6 +400,194 @@ async def extract_pdf_content(file: UploadFile = File(...)):
             except Exception as clean_err:
                 print(f"⚠️ Cảnh báo dọn dẹp thư mục tạm: {clean_err}")
 
+
+# ==============================================================================
+# HÀM XỬ LÝ PDF TỪ MINIO KEY (Dành cho Kafka Consumer)
+# ==============================================================================
+def process_pdf_from_minio_key(file_url: str) -> dict:
+    """
+    Tải file PDF từ MinIO key, chạy toàn bộ pipeline bóc tách OCR + Chunking,
+    và trả về dict kết quả giống hệt response của REST endpoint.
+    """
+    temp_dir = tempfile.mkdtemp(prefix="pdf-kafka-")
+    
+    # Trích xuất object key từ full URL nếu cần
+    prefix = f"{MINIO_ENDPOINT}/{MINIO_BUCKET}/"
+    if file_url.startswith(prefix):
+        object_key = file_url[len(prefix):]
+    else:
+        object_key = file_url
+    
+    # Xác định tên file từ key
+    filename = object_key.split("/")[-1] if "/" in object_key else object_key
+    if not filename.lower().endswith('.pdf'):
+        filename = filename + ".pdf"
+    
+    temp_pdf_path = os.path.join(temp_dir, filename)
+    
+    try:
+        # 1. Tải file PDF từ MinIO
+        print(f"📥 [PDF Kafka] Đang tải file PDF từ MinIO: {object_key}")
+        s3_client.download_file(MINIO_BUCKET, object_key, temp_pdf_path)
+        print(f"✅ [PDF Kafka] Đã tải thành công: {os.path.getsize(temp_pdf_path) / 1024:.1f} KB")
+        
+        # 2. Mở tài liệu PDF và xử lý
+        doc = fitz.open(temp_pdf_path)
+        pages_result = []
+        
+        try:
+            for page_idx, page in enumerate(doc):
+                page_num = page_idx + 1
+                
+                page_text, active_heading = extract_structured_page_content(page, page_num, temp_dir)
+                
+                raw_chars = len(page_text.strip())
+                if raw_chars < 50:
+                    print(f"📷 [PDF Kafka] Trang {page_num} là ảnh quét ({raw_chars} ký tự). Chạy PaddleOCR...")
+                    pix = page.get_pixmap(dpi=150)
+                    temp_img_path = os.path.join(temp_dir, f"page_{page_num}.png")
+                    pix.save(temp_img_path)
+                    
+                    try:
+                        ocr_result = ocr_engine.ocr(temp_img_path, cls=True)
+                    except Exception as gpu_err:
+                        print(f"⚠️ GPU OCR error: {gpu_err}. Chuyển CPU...")
+                        try:
+                            cpu_ocr = PaddleOCR(use_angle_cls=True, lang="vi", use_gpu=False, show_log=False)
+                            ocr_result = cpu_ocr.ocr(temp_img_path, cls=True)
+                        except Exception as cpu_err:
+                            print(f"❌ CPU OCR cũng thất bại: {cpu_err}")
+                            ocr_result = None
+                    
+                    ocr_texts = []
+                    if ocr_result and ocr_result[0]:
+                        for line in ocr_result[0]:
+                            ocr_texts.append(line[1][0])
+                    
+                    page_text = "\n".join(ocr_texts).strip()
+                    active_heading = ""
+                
+                page_chunks = chunk_page_text(page_text, page_num, active_heading)
+                
+                pages_result.append({
+                    "page": page_num,
+                    "rawContent": page_text,
+                    "chunks": [c["content"] for c in page_chunks]
+                })
+        finally:
+            doc.close()
+        
+        return {
+            "success": True,
+            "totalPages": len(pages_result),
+            "pages": pages_result
+        }
+        
+    except Exception as e:
+        print(f"❌ [PDF Kafka] Lỗi xử lý PDF: {str(e)}")
+        return {
+            "success": False,
+            "totalPages": 0,
+            "pages": [],
+            "errorMessage": str(e)
+        }
+    finally:
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+# ==============================================================================
+# KAFKA CONSUMER LOOP (Background Thread)
+# ==============================================================================
+def kafka_consumer_loop():
+    print("🚀 [PDF Kafka] Khởi chạy background Kafka Consumer loop...")
+    conf = {
+        'bootstrap.servers': KAFKA_BOOTSTRAP_SERVERS,
+        'group.id': KAFKA_GROUP_ID,
+        'auto.offset.reset': 'earliest',
+        'enable.auto.commit': False,
+        'max.poll.interval.ms': 600000,  # 10 phút timeout cho OCR nặng
+    }
+    
+    consumer = Consumer(conf)
+    consumer.subscribe([PDF_PARSER_REQUESTS_TOPIC])
+    
+    producer = Producer({'bootstrap.servers': KAFKA_BOOTSTRAP_SERVERS})
+    
+    while True:
+        try:
+            msg = consumer.poll(1.0)
+            if msg is None:
+                continue
+            if msg.error():
+                if msg.error().code() == KafkaError._PARTITION_EOF:
+                    continue
+                else:
+                    print(f"❌ [PDF Kafka] Kafka Error: {msg.error()}")
+                    continue
+            
+            payload_str = msg.value().decode('utf-8')
+            print(f"📥 [PDF Kafka] Nhận tin nhắn mới: {payload_str}")
+            
+            try:
+                payload = json.loads(payload_str)
+            except Exception as parse_err:
+                print(f"⚠️ [PDF Kafka] Lỗi parse JSON: {parse_err}")
+                consumer.commit(msg)
+                continue
+            
+            media_id = payload.get("mediaId")
+            course_id = payload.get("courseId")
+            lesson_id = payload.get("lessonId")
+            file_url = payload.get("fileUrl")
+            
+            if not file_url:
+                print("⚠️ [PDF Kafka] Thiếu fileUrl trong payload.")
+                consumer.commit(msg)
+                continue
+            
+            # Xử lý bóc tách PDF
+            parse_result = process_pdf_from_minio_key(file_url)
+            
+            # Xây dựng kết quả trả về
+            result_payload = {
+                "mediaId": media_id,
+                "courseId": course_id,
+                "lessonId": lesson_id,
+                "fileUrl": file_url,
+                "totalPages": parse_result.get("totalPages", 0),
+                "pages": parse_result.get("pages", []),
+                "success": parse_result.get("success", False),
+                "errorMessage": parse_result.get("errorMessage")
+            }
+            
+            # Gửi kết quả về pdf-parser-results-topic
+            try:
+                producer.produce(
+                    PDF_PARSER_RESULTS_TOPIC,
+                    key=lesson_id.encode('utf-8') if lesson_id else None,
+                    value=json.dumps(result_payload).encode('utf-8')
+                )
+                producer.flush()
+                print(f"✅ [PDF Kafka] Đã đẩy kết quả về topic: {PDF_PARSER_RESULTS_TOPIC}")
+                consumer.commit(msg)
+            except Exception as prod_err:
+                print(f"❌ [PDF Kafka] Lỗi gửi kết quả về Kafka: {prod_err}")
+                
+        except Exception as e:
+            print(f"❌ [PDF Kafka] Lỗi nghiêm trọng trong vòng lặp Consumer: {e}")
+            import time
+            time.sleep(2)
+
+
+@app.on_event("startup")
+def startup_event():
+    kafka_thread = threading.Thread(target=kafka_consumer_loop, daemon=True)
+    kafka_thread.start()
+    print("🚀 Background Thread cho PDF Parser Kafka Consumer đã khởi chạy thành công!")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app:app", host="127.0.0.1", port=8090, reload=True)
+

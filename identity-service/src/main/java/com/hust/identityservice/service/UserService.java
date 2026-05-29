@@ -4,11 +4,13 @@ package com.hust.identityservice.service;
 import com.hust.identityservice.dto.request.*;
 import com.hust.identityservice.dto.response.UserResponse;
 import com.hust.commonlibrary.dto.ListResponse;
+import com.hust.identityservice.entity.UserStatus;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
 public interface UserService {
+
 
     
     void assignRole(String userId, String roleName);
@@ -31,5 +33,7 @@ public interface UserService {
 
     List<UserResponse> getInstructorsSelect();
     
-    ListResponse<UserResponse> getAllUsers(Pageable pageable);
+    ListResponse<UserResponse> getAllUsers(Pageable pageable, String q, String role, UserStatus status);
 }
+
+

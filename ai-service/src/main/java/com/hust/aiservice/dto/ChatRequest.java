@@ -10,9 +10,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ChatRequest {
 
-    @NotBlank(message = "Course ID không được để trống")
+    private String sessionId;
+
+    @NotBlank
     private String courseId;
 
-    @NotBlank(message = "Nội dung câu hỏi không được để trống")
+    @NotBlank
     private String message;
 }

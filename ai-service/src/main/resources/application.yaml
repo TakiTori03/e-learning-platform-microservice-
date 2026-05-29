@@ -20,6 +20,12 @@ spring:
     password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
   
+  # Redis Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  
   jpa:
     hibernate:
       ddl-auto: validate
@@ -37,13 +43,21 @@ spring:
   # Kafka Configuration
   kafka:
     bootstrap-servers: ${KAFKA_SERVER:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     consumer:
-      group-id: ai-group
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:ai-group}
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      attempts: ${KAFKA_CONSUMER_ATTEMPTS:4}
+      backoff-delay: ${KAFKA_CONSUMER_BACKOFF_DELAY:5000}
+      backoff-multiplier: ${KAFKA_CONSUMER_BACKOFF_MULTIPLIER:2.0}
       properties:
         spring.json.trusted.packages: "com.hust.commonlibrary.event"
+    topic:
+      raw-text-ingested: ${KAFKA_TOPIC_RAW_TEXT_INGESTED:raw-text-ingested-topic}
 
 eureka:
   instance:
@@ -63,6 +77,37 @@ logging:
 
 # Gemini AI Configuration
 gemini:
-  api-key: ${GEMINI_API_KEY:}
-  embedding-model: text-embedding-004
-  chat-model: gemini-1.5-flash
+  api-key: ${GEMINI_API_KEY:AIzaSyBZp7wMUI6iGndO4pUf9Bp1TvVkazICVvc}
+  embedding-model: gemini-embedding-001
+  chat-model: gemini-3.1-flash-lite
+  base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
+  max-attempts: ${GEMINI_MAX_ATTEMPTS:3}
+  backoff-delay-ms: ${GEMINI_BACKOFF_DELAY_MS:1000}
+  embedding-dimensions: ${GEMINI_EMBEDDING_DIMENSIONS:768}
+  temperature: ${GEMINI_TEMPERATURE:0.2}
+  connect-timeout-ms: ${GEMINI_CONNECT_TIMEOUT_MS:15000}
+  read-timeout-ms: ${GEMINI_READ_TIMEOUT_MS:60000}
+
+# Cohere Rerank Configuration
+cohere:
+  rerank:
+    enabled: ${COHERE_RERANK_ENABLED:true}
+    api-key: ${COHERE_API_KEY:cohere_rtEDc7HG24mBZIQ34mYLegUy1sp9nzWywWjwfsir0aVXEd}
+    url: https://api.cohere.com/v1/rerank
+    model: rerank-multilingual-v3.0
+    connect-timeout-ms: ${COHERE_RERANK_CONNECT_TIMEOUT_MS:10000}
+    read-timeout-ms: ${COHERE_RERANK_READ_TIMEOUT_MS:20000}
+
+# RAG Configuration
+rag:
+  search-limit: ${RAG_SEARCH_LIMIT:20}
+  top-k-context: ${RAG_TOP_K_CONTEXT:5}
+  rrf-k: ${RAG_RRF_K:60.0}
+  rerank-top-k: ${RAG_RERANK_TOP_K:2}
+  context-window-size: ${RAG_CONTEXT_WINDOW_SIZE:1}
+  max-history-pairs: ${RAG_MAX_HISTORY_PAIRS:3}
+  fallback-answer: ${RAG_FALLBACK_ANSWER:Xin lỗi, tôi chưa tìm thấy tài liệu học tập nào liên quan đến câu hỏi này trong hệ thống.}
+  redis-exact-prefix: ${RAG_REDIS_EXACT_PREFIX:cache:exact:}
+  cache-ttl-hours: ${RAG_CACHE_TTL_HOURS:24}
+  semantic-cache-threshold: ${RAG_SEMANTIC_CACHE_THRESHOLD:0.05}
+  system-instruction: "Bạn là trợ lý học tập AI xuất sắc của hệ thống E-Learning.\nNHIỆM VỤ CỦA BẠN:\nTrả lời câu hỏi của người học một cách chính xác, học thuật, dễ hiểu dựa TRỰC TIẾP và CHỈ dựa trên phần ngữ cảnh (CONTEXT) được cung cấp dưới đây.\n\nRÀO CẢN NGHIÊM NGẶT (ANTI-HALLUCINATION GUARDRAILS):\n1. KHÔNG được tự bịa ra thông tin, số liệu, sự kiện hoặc đưa bất kỳ kiến thức nào nằm ngoài phần CONTEXT được cung cấp.\n2. Nếu câu hỏi của người học KHÔNG có thông tin giải đáp trong CONTEXT, hãy trả lời chính xác như sau: \"Tôi không tìm thấy thông tin này trong tài liệu học tập của khóa học.\"\n   Tuyệt đối KHÔNG cố trả lời bằng kiến thức chung của bạn khi CONTEXT không có.\n3. Trả lời bằng ngôn ngữ tự nhiên, mạch lạc, dùng đúng ngôn ngữ mà người dùng hỏi (thường là Tiếng Việt).\n4. Nêu rõ nguồn trích dẫn bằng số thứ tự hoặc tag tương ứng từ tài liệu nếu có thể."

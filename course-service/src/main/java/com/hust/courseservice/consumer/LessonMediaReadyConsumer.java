@@ -35,8 +35,7 @@ public class LessonMediaReadyConsumer {
                 }
 
                 if (event.getDuration() != null) {
-                    double durationInMinutes = event.getDuration() / 60.0;
-                    lesson.setVideoLength(Math.round(durationInMinutes * 100.0) / 100.0);
+                    lesson.setVideoLength(event.getDuration());
                     updated = true;
                 }
 

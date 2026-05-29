@@ -31,4 +31,14 @@ public class DocumentChunk {
 
     @Column(name = "source_citation", length = 50)
     private String sourceCitation;
+
+    @Column(name = "media_id", length = 50)
+    private String mediaId;
+
+    @Column(name = "chunk_index")
+    private Integer chunkIndex;
+
+    @Column(name = "created_at", insertable = false, updatable = false)
+    private java.time.LocalDateTime createdAt;
 }
+

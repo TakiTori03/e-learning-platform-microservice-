@@ -3,6 +3,7 @@ package com.hust.identityservice.controller;
 import com.hust.commonlibrary.dto.ApiResponse;
 import com.hust.commonlibrary.dto.ListResponse;
 import com.hust.identityservice.dto.response.UserResponse;
+import com.hust.identityservice.entity.UserStatus;
 import com.hust.identityservice.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -23,14 +24,19 @@ public class AdminUserController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<ListResponse<UserResponse>>> getAllUsers(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) UserStatus status,
             @PageableDefault Pageable pageable) {
+
         return ResponseEntity.ok(
                 ApiResponse.<ListResponse<UserResponse>>builder()
                         .success(true)
-                        .payload(userService.getAllUsers(pageable))
+                        .payload(userService.getAllUsers(pageable, q, role, status))
                         .build()
         );
     }
+
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable String id) {

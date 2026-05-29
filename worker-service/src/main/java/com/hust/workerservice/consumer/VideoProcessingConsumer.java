@@ -3,16 +3,22 @@ package com.hust.workerservice.consumer;
 import com.hust.commonlibrary.constant.KafkaTopics;
 import com.hust.commonlibrary.event.LessonMediaReadyEvent;
 import com.hust.commonlibrary.event.MediaProcessingRequestEvent;
-import com.hust.commonlibrary.entity.ContentType;
-import com.hust.commonlibrary.event.RawTextIngestedEvent;
+import com.hust.commonlibrary.event.SttRequestEvent;
 import com.hust.commonlibrary.annotation.TrackPerformance;
-import com.hust.workerservice.service.WhisperLocalSpeechToTextService;
+import com.hust.workerservice.service.MediaProcessingStatusService;
 import com.hust.workerservice.service.VideoProcessingService;
 import com.hust.workerservice.strategy.StorageStrategy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.annotation.RetryableTopic;
+import org.springframework.kafka.annotation.DltHandler;
+import org.springframework.kafka.retrytopic.TopicSuffixingStrategy;
+import org.springframework.kafka.retrytopic.DltStrategy;
+import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.retry.annotation.Backoff;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.FileSystemUtils;
@@ -24,6 +30,17 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.UUID;
 
+/**
+ * Consumer xử lý sự kiện Video từ Kafka.
+ *
+ * Pipeline song song (Tối ưu 2):
+ * 1. Tải video gốc từ MinIO về máy cục bộ.
+ * 2. Tách luồng âm thanh WAV siêu nhẹ 16kHz NGAY LẬP TỨC.
+ * 3. Upload WAV lên MinIO + Phát sự kiện STT Request qua Kafka (bất đồng bộ cho GPU xử lý).
+ * 4. ĐỒNG THỜI chạy HLS Transcoding (CPU) song song với GPU STT.
+ * 5. Khi HLS xong -> Đồng bộ thư mục lên MinIO -> Đánh dấu Redis.
+ * 6. Bên nào xong SAU CÙNG (HLS hoặc STT) sẽ phát LessonMediaReadyEvent.
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -32,7 +49,7 @@ public class VideoProcessingConsumer {
     private final VideoProcessingService videoProcessingService;
     private final StorageStrategy storageStrategy;
     private final KafkaTemplate<String, Object> kafkaTemplate;
-    private final WhisperLocalSpeechToTextService whisperLocalSpeechToTextService;
+    private final MediaProcessingStatusService statusService;
 
     @Value("${app.storage.local-path:./uploads}")
     private String baseStoragePath;
@@ -43,8 +60,19 @@ public class VideoProcessingConsumer {
     @Value("${app.minio.bucket-name:}")
     private String bucketName;
 
+    @RetryableTopic(
+            attempts = "4",
+            backoff = @Backoff(delay = 5000, multiplier = 2.0),
+            topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
+            dltStrategy = DltStrategy.FAIL_ON_ERROR,
+            include = {
+                org.springframework.web.client.RestClientException.class,
+                java.io.IOException.class,
+                java.lang.RuntimeException.class
+            }
+    )
     @KafkaListener(topics = KafkaTopics.MEDIA_PROCESSING, groupId = "video-worker-group", concurrency = "1")
-    @TrackPerformance(threshold = 300000, description = "Video HLS Transcoding & Whisper Subtitle Ingestion Pipeline")
+    @TrackPerformance(threshold = 600000, description = "Video HLS Transcoding & Kafka STT Pipeline (Parallel)")
     public void consume(MediaProcessingRequestEvent event) {
         if (!"VIDEO".equalsIgnoreCase(event.getMediaType())) {
             return;
@@ -57,50 +85,58 @@ public class VideoProcessingConsumer {
         Path localHlsPath = Paths.get(baseStoragePath, "hls", hlsFolderName);
 
         try {
-            // 1. Tạo tệp tạm và tải video gốc từ MinIO về máy cục bộ
+            // 1. Khởi tạo trạng thái trên Redis (HLS=PENDING, STT=PENDING)
+            statusService.initVideoProcessingStatus(
+                    event.getMediaId(), event.getCourseId(), event.getLessonId(), hlsFolderName);
+
+            // 2. Tạo tệp tạm và tải video gốc từ MinIO về máy cục bộ
             tempFile = File.createTempFile("worker-transcode-raw-", ".mp4");
             storageStrategy.downloadFileToLocal(event.getFileUrl(), tempFile);
 
-            // 2. Chuyển đổi sang định dạng HLS (phân đoạn .ts) & Trích xuất ảnh thu nhỏ (Thumbnail)
-            videoProcessingService.processToHls(tempFile, hlsFolderName);
-
-            // 3. Tách luồng âm thanh siêu nhẹ dạng MP3 16kHz
+            // 3. Tách luồng âm thanh WAV 16kHz NGAY LẬP TỨC (trước khi HLS)
             String relativeAudioPath = videoProcessingService.extractAudio(tempFile, hlsFolderName);
             File audioFile = Paths.get(baseStoragePath, relativeAudioPath).toFile();
 
-            // 4. Bóc băng phụ đề WebVTT bằng Whisper.cpp cục bộ
-            String vttContent = createVttFileAndGetContent(hlsFolderName, audioFile);
+            // 4. Upload WAV lên MinIO + Phát sự kiện STT Request qua Kafka
+            String audioKey = "hls/" + hlsFolderName + "/audio.wav";
+            storageStrategy.uploadFile(audioFile.getAbsolutePath(), audioKey);
+            log.info("📤 Đã upload file WAV lên MinIO key: {}", audioKey);
 
-            // 4.5. Phân đoạn phụ đề WebVTT thành các chunk thông minh kèm mốc thời gian (Timestamps Alignment)
-            parseAndEmitVttChunks(vttContent, event);
+            SttRequestEvent sttRequest = SttRequestEvent.builder()
+                    .mediaId(event.getMediaId())
+                    .courseId(event.getCourseId())
+                    .lessonId(event.getLessonId())
+                    .audioKey(audioKey)
+                    .language("auto")
+                    .build();
+            kafkaTemplate.send(KafkaTopics.STT_REQUESTS, event.getLessonId(), sttRequest);
+            log.info("📨 Đã phát SttRequestEvent qua Kafka cho GPU Service bóc băng bất đồng bộ.");
 
-            // 5. Đồng bộ toàn bộ thư mục HLS lên MinIO
+            // 5. ĐỒNG THỜI chạy HLS Transcoding trên CPU (song song với GPU STT)
+            videoProcessingService.processToHls(tempFile, hlsFolderName);
+            log.info("✅ HLS Transcoding hoàn tất cho folder: {}", hlsFolderName);
+
+            // 6. Đồng bộ toàn bộ thư mục HLS lên MinIO
             String remoteHlsPath = "hls/" + hlsFolderName;
             storageStrategy.uploadDirectory(localHlsPath.toString(), remoteHlsPath);
 
-            // 6. Tạo liên kết công khai
-            String url = String.format("%s/%s/%s/playlist.m3u8", minioEndpoint, bucketName, remoteHlsPath);
-
-            String transcriptUrl = String.format("%s/%s/%s/subtitles.vtt", minioEndpoint, bucketName, remoteHlsPath);
-
-            // 7. Phát sự kiện LessonMediaReadyEvent báo cáo hoàn tất
+            // 7. Tạo liên kết công khai
+            String hlsUrl = String.format("%s/%s/%s/playlist.m3u8", minioEndpoint, bucketName, remoteHlsPath);
             long fileSize = tempFile.length();
             Double duration = videoProcessingService.getVideoDuration(tempFile);
-            
-            LessonMediaReadyEvent readyEvent = LessonMediaReadyEvent.builder()
-                    .lessonId(event.getLessonId())
-                    .mediaId(event.getMediaId())
-                    .hlsFolderName(hlsFolderName)
-                    .transcriptUrl(transcriptUrl)
-                    .url(url)
-                    .fileSize(fileSize)
-                    .duration(duration)
-                    .build();
 
-            kafkaTemplate.send(KafkaTopics.LESSON_MEDIA_READY, event.getLessonId(), readyEvent);
-            log.info("✅ Đã phát LessonMediaReadyEvent thành công cho lesson {}", event.getLessonId());
+            // 8. Đánh dấu HLS hoàn tất trên Redis và kiểm tra STT đã xong chưa
+            boolean allDone = statusService.markHlsComplete(
+                    event.getMediaId(), hlsUrl, fileSize, duration != null ? duration : 0.0);
 
-            // 8. Dọn dẹp video thô trên MinIO để tiết kiệm không gian lưu trữ đám mây
+            if (allDone) {
+                // Nếu STT cũng đã xong -> Phát sự kiện hoàn tất
+                emitFinalReadyEvent(event.getMediaId(), event.getLessonId());
+            } else {
+                log.info("⏳ HLS đã xong. STT vẫn đang chạy trên GPU. SttResultConsumer sẽ phát event khi STT hoàn thành.");
+            }
+
+            // 9. Dọn dẹp video thô trên MinIO
             try {
                 storageStrategy.deleteFile(event.getFileUrl());
                 log.info("🗑️ Đã xóa video gốc thô trên MinIO: {}", event.getFileUrl());
@@ -109,7 +145,17 @@ public class VideoProcessingConsumer {
             }
 
         } catch (Exception e) {
-            log.error("❌ Lỗi nghiêm trọng khi transcode video {}: {}", event.getMediaId(), e.getMessage(), e);
+            log.error("❌ Lỗi nghiêm trọng khi xử lý video {}: {}", event.getMediaId(), e.getMessage(), e);
+            // Đánh dấu HLS thất bại trên Redis
+            try {
+                boolean allDone = statusService.markHlsFailed(event.getMediaId());
+                if (allDone) {
+                    emitFinalReadyEvent(event.getMediaId(), event.getLessonId());
+                }
+            } catch (Exception redisEx) {
+                log.error("❌ Lỗi cập nhật Redis khi HLS thất bại: {}", redisEx.getMessage());
+            }
+            throw new RuntimeException("Video HLS transcoding failed, triggering retry topic", e);
         } finally {
             // Dọn dẹp tài nguyên tệp tạm cục bộ
             if (tempFile != null && tempFile.exists()) {
@@ -122,107 +168,66 @@ public class VideoProcessingConsumer {
         }
     }
 
-    private String createVttFileAndGetContent(String hlsFolderName, File audioFile) throws IOException {
-        Path vttPath = Paths.get(baseStoragePath, "hls", hlsFolderName, "subtitles.vtt");
-        Files.createDirectories(vttPath.getParent());
-        File vttFile = vttPath.toFile();
+    /**
+     * Phát sự kiện LessonMediaReadyEvent dựa trên trạng thái Redis.
+     * Được gọi khi cả HLS và STT đều đã hoàn thành (SUCCESS hoặc FAILED).
+     */
+    public void emitFinalReadyEvent(String mediaId, String lessonId) {
+        try {
+            if (statusService.hasAnyFailure(mediaId)) {
+                // Có ít nhất 1 bước thất bại -> gửi event báo lỗi
+                LessonMediaReadyEvent failedEvent = LessonMediaReadyEvent.builder()
+                        .lessonId(lessonId)
+                        .mediaId(mediaId)
+                        .url(null)
+                        .fileSize(-1L)
+                        .build();
+                kafkaTemplate.send(KafkaTopics.LESSON_MEDIA_READY, lessonId, failedEvent);
+                log.warn("📢 Đã gửi LessonMediaReadyEvent báo lỗi (FAILED) cho lesson {}", lessonId);
+            } else {
+                // Cả 2 bước đều thành công -> gửi event thành công
+                String hlsUrl = statusService.getField(mediaId, MediaProcessingStatusService.FIELD_HLS_URL);
+                String transcriptUrl = statusService.getField(mediaId, MediaProcessingStatusService.FIELD_TRANSCRIPT_URL);
+                String fileSizeStr = statusService.getField(mediaId, MediaProcessingStatusService.FIELD_FILE_SIZE);
+                String durationStr = statusService.getField(mediaId, MediaProcessingStatusService.FIELD_DURATION);
+                String hlsFolder = statusService.getField(mediaId, MediaProcessingStatusService.FIELD_HLS_FOLDER);
 
-        // Gọi Whisper.cpp bóc băng offline
-        String vttContent = whisperLocalSpeechToTextService.transcribeAudioToVtt(audioFile);
+                long fileSize = fileSizeStr != null ? Long.parseLong(fileSizeStr) : 0L;
+                double duration = durationStr != null ? Double.parseDouble(durationStr) : 0.0;
 
-        // Lưu tệp WebVTT cục bộ
-        Files.write(vttPath, vttContent.getBytes());
-        log.info("💾 Đã lưu tệp WebVTT phụ đề cục bộ: {}", vttFile.getAbsolutePath());
-
-        return vttContent;
-    }
-
-    private void parseAndEmitVttChunks(String vttContent, MediaProcessingRequestEvent event) {
-        log.info("🎞️ Bắt đầu phân mảnh thông minh phụ đề WebVTT...");
-        if (vttContent == null || vttContent.trim().isEmpty()) {
-            return;
-        }
-
-        String[] blocks = vttContent.split("\\r?\\n\\r?\\n");
-        StringBuilder currentChunk = new StringBuilder();
-        String currentStartTimestamp = null;
-        int wordCount = 0;
-
-        for (String block : blocks) {
-            block = block.trim();
-            if (block.isEmpty() || block.equals("WEBVTT")) {
-                continue;
+                LessonMediaReadyEvent readyEvent = LessonMediaReadyEvent.builder()
+                        .lessonId(lessonId)
+                        .mediaId(mediaId)
+                        .hlsFolderName(hlsFolder)
+                        .transcriptUrl(transcriptUrl)
+                        .url(hlsUrl)
+                        .fileSize(fileSize)
+                        .duration(duration)
+                        .build();
+                kafkaTemplate.send(KafkaTopics.LESSON_MEDIA_READY, lessonId, readyEvent);
+                log.info("✅ Đã phát LessonMediaReadyEvent thành công cho lesson {}", lessonId);
             }
-
-            String[] lines = block.split("\\r?\\n");
-            if (lines.length < 2) {
-                continue;
-            }
-
-            String timeLine = lines[0];
-            if (!timeLine.contains("-->")) {
-                continue;
-            }
-
-            StringBuilder textLineBuilder = new StringBuilder();
-            for (int i = 1; i < lines.length; i++) {
-                textLineBuilder.append(lines[i]).append(" ");
-            }
-            String cueText = textLineBuilder.toString().trim();
-            if (cueText.isEmpty()) {
-                continue;
-            }
-
-            String startRaw = timeLine.split("-->")[0].trim();
-            String formattedTime = formatTimestamp(startRaw);
-
-            if (currentStartTimestamp == null) {
-                currentStartTimestamp = formattedTime;
-            }
-
-            currentChunk.append(cueText).append(" ");
-            wordCount += cueText.split("\\s+").length;
-
-            // Gom khoảng 120 từ (~1 đến 1.5 phút thuyết giảng) để nhúng vector tốt nhất
-            if (wordCount >= 120) {
-                emitRawTextEvent(event, currentChunk.toString().trim(), currentStartTimestamp);
-                currentChunk = new StringBuilder();
-                currentStartTimestamp = null;
-                wordCount = 0;
-            }
-        }
-
-        // Emit nốt chunk cuối cùng còn sót lại
-        if (!currentChunk.isEmpty() && currentStartTimestamp != null) {
-            emitRawTextEvent(event, currentChunk.toString().trim(), currentStartTimestamp);
+            // Dọn dẹp Redis
+            statusService.cleanup(mediaId);
+        } catch (Exception e) {
+            log.error("❌ Lỗi khi phát LessonMediaReadyEvent: {}", e.getMessage(), e);
         }
     }
 
-    private String formatTimestamp(String rawTime) {
-        // "00:02:15.500" -> "02:15"
-        String[] parts = rawTime.split(":");
-        if (parts.length >= 3) {
-            String minutes = parts[1];
-            String seconds = parts[2];
-            if (seconds.contains(".")) {
-                seconds = seconds.substring(0, seconds.indexOf("."));
-            }
-            return minutes + ":" + seconds;
+    @DltHandler
+    public void handleDlt(MediaProcessingRequestEvent event, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+        log.error("❌ [DLQ] Xử lý Video/STT cho lesson {} thất bại hoàn toàn sau tất cả các lần thử lại tại topic: {}", event.getLessonId(), topic);
+        try {
+            LessonMediaReadyEvent failedEvent = LessonMediaReadyEvent.builder()
+                    .lessonId(event.getLessonId())
+                    .mediaId(event.getMediaId())
+                    .url(null)
+                    .fileSize(-1L)
+                    .build();
+            kafkaTemplate.send(KafkaTopics.LESSON_MEDIA_READY, event.getLessonId(), failedEvent);
+            log.warn("📢 Đã gửi LessonMediaReadyEvent báo lỗi (DLQ FAILED) cho lesson {}", event.getLessonId());
+        } catch (Exception e) {
+            log.error("Lỗi khi xử lý DLQ Handler cho Video: {}", e.getMessage(), e);
         }
-        return "00:00";
-    }
-
-    private void emitRawTextEvent(MediaProcessingRequestEvent event, String text, String timestamp) {
-        RawTextIngestedEvent ingestionEvent = RawTextIngestedEvent.builder()
-                .courseId(event.getCourseId())
-                .lessonId(event.getLessonId())
-                .mediaId(event.getMediaId())
-                .content(text)
-                .contentType(ContentType.VIDEO)
-                .sourceCitation(timestamp) // Trích dẫn trực tiếp giây:phút
-                .build();
-        
-        kafkaTemplate.send(KafkaTopics.RAW_TEXT_INGESTED, event.getLessonId(), ingestionEvent);
-        log.info("✅ Đã phát RawTextIngestedEvent (Video) tại mốc thời gian: [{}]", timestamp);
     }
 }

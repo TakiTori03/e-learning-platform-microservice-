@@ -152,6 +152,9 @@ public class MediaController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        return ResponseEntity.ok(mediaService.getVideoKey(folderName));
+        byte[] keyBytes = mediaService.getVideoKey(folderName);
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CACHE_CONTROL, "private, max-age=3600")
+                .body(keyBytes);
     }
 }

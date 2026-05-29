@@ -18,4 +18,6 @@ public class SearchResultDto {
     private ContentType contentType;
     private String sourceCitation;
     private double score;
+    private String mediaId;
+    private Integer chunkIndex;
 }

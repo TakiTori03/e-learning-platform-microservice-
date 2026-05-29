@@ -13,20 +13,22 @@ public interface DocumentChunkRepository extends JpaRepository<DocumentChunk, St
 
     @Transactional
     @Modifying
-    @Query(value = "INSERT INTO document_chunks (id, course_id, lesson_id, content, content_type, source_citation, embedding) " +
-                   "VALUES (:id, :courseId, :lessonId, :content, :contentType, :sourceCitation, cast(:embedding as vector))", 
+    @Query(value = "INSERT INTO document_chunks (id, course_id, lesson_id, media_id, chunk_index, content, content_type, source_citation, embedding, created_at) " +
+                   "VALUES (:id, :courseId, :lessonId, :mediaId, :chunkIndex, :content, :contentType, :sourceCitation, cast(:embedding as vector), NOW())", 
            nativeQuery = true)
     void insertChunk(
         @Param("id") String id,
         @Param("courseId") String courseId,
         @Param("lessonId") String lessonId,
+        @Param("mediaId") String mediaId,
+        @Param("chunkIndex") Integer chunkIndex,
         @Param("content") String content,
         @Param("contentType") String contentType,
         @Param("sourceCitation") String sourceCitation,
         @Param("embedding") String embeddingString
     );
 
-    @Query(value = "SELECT id, course_id as courseId, lesson_id as lessonId, content, content_type as contentType, source_citation as sourceCitation, " +
+    @Query(value = "SELECT id, course_id as courseId, lesson_id as lessonId, media_id as mediaId, chunk_index as chunkIndex, content, content_type as contentType, source_citation as sourceCitation, " +
                    "(embedding <=> cast(:queryVector as vector)) as score " +
                    "FROM document_chunks " +
                    "WHERE course_id = :courseId " +
@@ -38,7 +40,7 @@ public interface DocumentChunkRepository extends JpaRepository<DocumentChunk, St
         @Param("limit") int limit
     );
 
-    @Query(value = "SELECT id, course_id as courseId, lesson_id as lessonId, content, content_type as contentType, source_citation as sourceCitation, " +
+    @Query(value = "SELECT id, course_id as courseId, lesson_id as lessonId, media_id as mediaId, chunk_index as chunkIndex, content, content_type as contentType, source_citation as sourceCitation, " +
                    "ts_rank_cd(fts_document, websearch_to_tsquery('simple', :queryText)) as score " +
                    "FROM document_chunks " +
                    "WHERE course_id = :courseId " +
@@ -49,5 +51,16 @@ public interface DocumentChunkRepository extends JpaRepository<DocumentChunk, St
         @Param("courseId") String courseId,
         @Param("queryText") String queryText,
         @Param("limit") int limit
+    );
+
+    @Query(value = "SELECT content FROM document_chunks " +
+                   "WHERE media_id = :mediaId " +
+                   "AND chunk_index BETWEEN :chunkIndex - :windowSize AND :chunkIndex + :windowSize " +
+                   "ORDER BY chunk_index ASC",
+           nativeQuery = true)
+    java.util.List<String> findNeighboringChunks(
+        @Param("mediaId") String mediaId,
+        @Param("chunkIndex") int chunkIndex,
+        @Param("windowSize") int windowSize
     );
 }

@@ -1,6 +1,5 @@
 package com.hust.commonlibrary.event;
 
-import com.hust.commonlibrary.entity.ContentType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -10,12 +9,10 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class RawTextIngestedEvent {
+public class SttRequestEvent {
+    private String mediaId;
     private String courseId;
     private String lessonId;
-    private String mediaId;
-    private String content;
-    private ContentType contentType;
-    private String sourceCitation;
-    private Integer chunkIndex;
+    private String audioKey;
+    private String language;
 }

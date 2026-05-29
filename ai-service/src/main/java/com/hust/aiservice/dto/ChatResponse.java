@@ -12,6 +12,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChatResponse {
+    private String sessionId; // Gửi lại để frontend lưu cho các lượt tiếp theo
     private String answer;
     private List<Citation> citations;
 }

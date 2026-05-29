@@ -72,7 +72,6 @@ public class VideoProcessingService {
                 "-hls_time", "10",
                 "-hls_list_size", "0",
                 "-hls_key_info_file", keyInfoFile.getAbsolutePath(),
-                "-f", "hls",
                 m3u8Output
         );
 
@@ -104,8 +103,38 @@ public class VideoProcessingService {
             throw new RuntimeException("FFmpeg failed with exit code " + exitCode);
         }
 
+        // Post-process the m3u8 playlist to remove duplicate #EXT-X-KEY declarations
+        cleanM3u8Playlist(m3u8Output);
+
         // Return the relative path to the playlist
         return "hls/" + outputDirName + "/playlist.m3u8";
+    }
+
+    private void cleanM3u8Playlist(String m3u8Path) {
+        Path path = Paths.get(m3u8Path);
+        if (!Files.exists(path)) {
+            return;
+        }
+        try {
+            java.util.List<String> lines = Files.readAllLines(path, java.nio.charset.StandardCharsets.UTF_8);
+            java.util.List<String> cleanedLines = new java.util.ArrayList<>();
+            boolean hasKeyLine = false;
+            for (String line : lines) {
+                if (line.startsWith("#EXT-X-KEY")) {
+                    if (!hasKeyLine) {
+                        cleanedLines.add(line);
+                        hasKeyLine = true;
+                    }
+                    // skip subsequent key lines
+                } else {
+                    cleanedLines.add(line);
+                }
+            }
+            Files.write(path, cleanedLines, java.nio.charset.StandardCharsets.UTF_8);
+            log.info("🧹 Successfully cleaned up repeated #EXT-X-KEY tags from: {}", m3u8Path);
+        } catch (IOException e) {
+            log.error("❌ Failed to clean playlist.m3u8 file: {}", e.getMessage(), e);
+        }
     }
 
     public String extractAudio(File inputFile, String outputDirName) throws IOException, InterruptedException {
@@ -156,7 +185,9 @@ public class VideoProcessingService {
         String keyUri = "/api/v1/media/keys/" + outputDirName;
         File keyInfoFile = new File(dir, "keyinfo.txt");
         String normalizedPath = keyFilePath.replace("\\", "/");
-        String content = keyUri + "\n" + normalizedPath;
+        // IV tĩnh 128-bit (32 ký tự hex) để FFmpeg chỉ ghi 1 tag #EXT-X-KEY duy nhất ở đầu playlist
+        String iv = "00000000000000000000000000000000";
+        String content = keyUri + "\n" + normalizedPath + "\n" + iv;
         Files.write(keyInfoFile.toPath(), content.getBytes());
         return keyInfoFile;
     }

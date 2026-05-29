@@ -365,22 +365,39 @@ public class CourseServiceImpl implements CourseService {
     @Override
     @Transactional
     @CustomCacheEvict(key = "'course:detail:' + #id")
-    public void updateStatus(String id, String status, String access) {
+    public void updateStatus(String id, CourseStatus status, CourseAccess access) {
         Course course = courseRepository.findById(id).orElseThrow(() -> 
                 new ResourceNotFoundException(AppConstants.Resource_Constants.COURSE, AppConstants.Field_Constants.ID, id));
         
         validateCourseOwnership(course);
 
-        if (status != null && !status.trim().isEmpty()) {
-            course.setStatus(CourseStatus.valueOf(status.trim().toUpperCase()));
+        if (status != null) {
+            CourseStatus currentStatus = course.getStatus();
+
+            if (status == CourseStatus.PUBLISHED) {
+                throw new AccessDeniedException("Giảng viên không có quyền tự xuất bản khóa học!");
+            }
+            if (status == CourseStatus.REJECTED) {
+                throw new AccessDeniedException("Giảng viên không thể tự thiết lập trạng thái từ chối!");
+            }
+            if (status == CourseStatus.PENDING && 
+                currentStatus != CourseStatus.DRAFT && currentStatus != CourseStatus.REJECTED) {
+                throw new IllegalArgumentException("Chỉ có thể gửi yêu cầu duyệt từ trạng thái Bản nháp hoặc Bị từ chối!");
+            }
+            if (status == CourseStatus.ARCHIVED && currentStatus != CourseStatus.PUBLISHED) {
+                throw new IllegalArgumentException("Chỉ có thể lưu trữ khóa học đã được xuất bản!");
+            }
+
+            course.setStatus(status);
         }
-        if (access != null && !access.trim().isEmpty()) {
-            course.setAccess(CourseAccess.valueOf(access.trim().toUpperCase()));
+        if (access != null) {
+            course.setAccess(access);
         }
         courseRepository.save(course);
         
         logAction(course.getId(), ActionLogType.UPDATE, "Course status/access updated by instructor", FunctionType.COURSE);
     }
+
 
     @Override
     @Transactional(readOnly = true)
@@ -432,15 +449,15 @@ public class CourseServiceImpl implements CourseService {
     @Override
     @Transactional
     @CustomCacheEvict(key = "'course:detail:' + #id")
-    public void adminUpdateStatus(String id, String status, String access) {
+    public void adminUpdateStatus(String id, CourseStatus status, CourseAccess access) {
         Course course = courseRepository.findById(id).orElseThrow(() -> 
                 new ResourceNotFoundException(AppConstants.Resource_Constants.COURSE, AppConstants.Field_Constants.ID, id));
 
-        if (status != null && !status.trim().isEmpty()) {
-            course.setStatus(CourseStatus.valueOf(status.trim().toUpperCase()));
+        if (status != null) {
+            course.setStatus(status);
         }
-        if (access != null && !access.trim().isEmpty()) {
-            course.setAccess(CourseAccess.valueOf(access.trim().toUpperCase()));
+        if (access != null) {
+            course.setAccess(access);
         }
         courseRepository.save(course);
         
